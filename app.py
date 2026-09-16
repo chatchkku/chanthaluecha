@@ -456,28 +456,28 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- ส่วน Fibonacci ---
-    st.markdown("#### 🌀 วิเคราะห์ระดับ Fibonacci Retracement")
+    # --- ส่วน Fibonacci (เรียงลำดับจากน้อยไปมาก: 14d -> 60d -> 6mo -> 1y) ---
+    st.markdown("#### 🌀 Fibonacci Retracement Analysis")
     fib_choice = st.selectbox(
-        "เลือกกรอบเวลาเพื่อคำนวณ Fibonacci:",
+        "Select Timeframe for Fibonacci Calculation:",
         [
-            "รายวัน (Daily - 6mo)",
-            "ราย 1 ชั่วโมง (1H - 14d)",
-            "ราย 4 ชั่วโมง (4H - 60d)",
-            "รายสัปดาห์ (Weekly - 1y)",
+            "1 Hour (1H - 14d)",
+            "4 Hours (4H - 60d)",
+            "Daily (Daily - 6mo)",
+            "Weekly (Weekly - 1y)",
         ],
-        index=0,
+        index=2,
     )
 
-    if "1 ชั่วโมง" in fib_choice:
+    if "1 Hour" in fib_choice:
       active_fib = calculate_fibonacci_levels(
           ticker_symbol, interval="60m", period="14d"
       )
-    elif "4 ชั่วโมง" in fib_choice:
+    elif "4 Hours" in fib_choice:
       active_fib = calculate_fibonacci_levels(
           ticker_symbol, interval="240m", period="60d"
       )
-    elif "รายสัปดาห์" in fib_choice:
+    elif "Weekly" in fib_choice:
       active_fib = calculate_fibonacci_levels(
           ticker_symbol, interval="1wk", period="1y"
       )
@@ -664,7 +664,6 @@ try:
       ema_89_last = plot_data["EMA_89"].iloc[-1]
       ema_200_last = plot_data["EMA_200"].iloc[-1]
 
-      # Map ชื่อภาษาไทยของไทม์เฟรมและช่วงเวลา ให้แสดงเป็นภาษาอังกฤษล้วนในหัวข้อกราฟ
       tf_code_map = {
           "ราย 1 ชั่วโมง (1H)": "1H",
           "ราย 4 ชั่วโมง (4H)": "4H",

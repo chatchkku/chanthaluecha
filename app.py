@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="My Smart Investment App", layout="wide", page_icon="📈")
 
 # ==========================================
-# 2. ฟังก์ชันดึงข้อมูลหุ้น (ระบบเติม .BK อัตโนมัติ)
+# 2. ฟังก์ชันดึงข้อมูลหุ้น
 # ==========================================
 @st.cache_data(ttl=600)
 def load_stock_data(ticker):
@@ -120,8 +120,35 @@ if ticker_input:
         
         st.divider()
 
-        # --- ส่วนที่ 3: เช็กลิสต์และบันทึกการลงทุน ---
-        st.subheader("📝 3. บันทึกการลงทุน (Trade Journal & Checklist)")
+        # --- ส่วนที่ 3: เพิ่มค่าสำคัญๆ ไว้ด้านล่างสุด (ก่อนถึงบันทึกการลงทุน) ---
+        st.subheader("📌 3. ค่าสถิติและข้อมูลสำคัญเพิ่มเติม")
+        try:
+            current_price = float(hist['Close'].iloc[-1])
+            prev_price = float(hist['Close'].iloc[-2]) if len(hist) > 1 else current_price
+            price_change = current_price - prev_price
+            price_change_pct = (price_change / prev_price) * 100
+            
+            high_52w = float(info.get("fiftyTwoWeekHigh", hist['High'].max()))
+            low_52w = float(info.get("fiftyTwoWeekLow", hist['Low'].min()))
+            market_cap = info.get("marketCap", "N/A")
+            market_cap_str = f"{market_cap:,.0f} บาท" if isinstance(market_cap, (int, float)) else "N/A"
+            
+            sub_c1, sub_c2, sub_c3 = st.columns(3)
+            with sub_c1:
+                st.metric(label="ราคาปัจจุบัน (Close)", value=f"{current_price:.2f}", delta=f"{price_change:.2f} ({price_change_pct:.2f}%)")
+            with sub_c2:
+                st.metric(label="สูงสุดในรอบ 52 สัปดาห์", value=f"{high_52w:.2f}")
+            with sub_c3:
+                st.metric(label="ต่ำสุดในรอบ 52 สัปดาห์", value=f"{low_52w:.2f}")
+                
+            st.markdown(f"**มูลค่าหลักทรัพย์ตามราคาตลาด (Market Cap):** {market_cap_str}")
+        except Exception as metric_ex:
+            st.info("กำลังประมวลผลข้อมูลสถิติเพิ่มเติม...")
+
+        st.divider()
+
+        # --- ส่วนที่ 4: บันทึกการลงทุน (Trade Journal & Checklist) ---
+        st.subheader("📝 4. บันทึกการลงทุน (Trade Journal & Checklist)")
         with st.form("trade_journal_form"):
             st.markdown("**Checklist ก่อนตัดสินใจซื้อ/ขาย:**")
             col_ck1, col_ck2 = st.columns(2)

@@ -553,6 +553,12 @@ try:
       if plot_data.empty:
         plot_data = hist_filtered
 
+      # ดึงค่าราคาล่าสุดของแต่ละเส้น EMA
+      ema_35_last = plot_data["EMA_35"].iloc[-1]
+      ema_50_last = plot_data["EMA_50"].iloc[-1]
+      ema_89_last = plot_data["EMA_89"].iloc[-1]
+      ema_200_last = plot_data["EMA_200"].iloc[-1]
+
       plt.style.use("default")
       fig, ax = plt.subplots(figsize=(10, 4.5), constrained_layout=True)
       fig.patch.set_facecolor("#ffffff")
@@ -571,7 +577,7 @@ try:
           color="#d97706",
           linewidth=1.2,
           linestyle="--",
-          label="EMA 35",
+          label=f"EMA 35 ({ema_35_last:,.2f})",
       )
       ax.plot(
           plot_data.index,
@@ -579,7 +585,7 @@ try:
           color="#059669",
           linewidth=1.2,
           linestyle="--",
-          label="EMA 50",
+          label=f"EMA 50 ({ema_50_last:,.2f})",
       )
       ax.plot(
           plot_data.index,
@@ -587,14 +593,14 @@ try:
           color="#7c3aed",
           linewidth=1.2,
           linestyle="--",
-          label="EMA 89",
+          label=f"EMA 89 ({ema_89_last:,.2f})",
       )
       ax.plot(
           plot_data.index,
           plot_data["EMA_200"],
           color="#dc2626",
           linewidth=1.8,
-          label="EMA 200",
+          label=f"EMA 200 ({ema_200_last:,.2f})",
       )
 
       if "1 ชั่วโมง" in sr_overlay_tf:

@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
-# --- ตั้งค่าหน้าเว็บให้เป็นแบบ Wide Mode และรองรับ Mobile Responsive ---
+# --- ตั้งค่าหน้าเว็บให้เป็นแบบ Wide Mode ---
 st.set_page_config(
     page_title="Chanthaluecha Intelligence Dashboard",
     page_icon="📈",
@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- Custom CSS รองรับทุกหน้าจอ (ซ่อน Sidebar ถาวร) ---
+# --- Custom CSS ออกแบบใหม่ให้พรีเมียมและสะอาดตา ---
 st.markdown(
     """
     <style>
@@ -21,100 +21,82 @@ st.markdown(
 
         html, body, [class*="st"] {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            color: #0f172a !important;
+            color: #1e293b !important;
         }
 
         .main {
             background-color: #f8fafc;
-            color: #0f172a;
         }
 
-        /* ซ่อน Sidebar และปุ่มเปิด-ปิด */
-        [data-testid="stSidebar"] {
-            display: none;
-        }
-        [data-testid="collapsedControl"] {
+        /* ซ่อน Sidebar ถาวร */
+        [data-testid="stSidebar"], [data-testid="collapsedControl"] {
             display: none;
         }
 
-        /* Hero Header สำหรับทุกขนาดหน้าจอ */
-        .main-header {
-            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-            padding: 20px 25px;
+        /* Header ดีไซน์ใหม่ */
+        .app-header {
+            background: linear-gradient(135deg, #0f172a 1e%, #1e3a8a 100%);
+            padding: 24px 30px;
             border-radius: 16px;
-            color: #1e1b4b;
-            margin-bottom: 20px;
-            border: 1px solid rgba(79, 70, 229, 0.2);
-            box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.15);
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.2);
         }
-        .main-header h1 {
+        .app-header h1 {
             font-size: 1.8rem;
             font-weight: 700;
+            color: #ffffff !important;
             margin-bottom: 6px;
-            color: #1e1b4b !important;
-            letter-spacing: -0.5px;
         }
-        .main-header p {
-            color: #312e81 !important;
+        .app-header p {
+            color: #93c5fd !important;
             font-size: 0.95rem;
             margin: 0;
         }
 
-        @media (min-width: 768px) {
-            .main-header {
-                padding: 30px 35px;
-            }
-            .main-header h1 {
-                font-size: 2.4rem;
-            }
-            .main-header p {
-                font-size: 1.05rem;
-            }
+        /* Card ดีไซน์สไตล์ Minimalist */
+        .metric-card {
+            background: #ffffff;
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+            transition: all 0.2s ease;
+            height: 100%;
+        }
+        .metric-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
         }
 
-        /* Buttons Touch-Friendly สำหรับมือถือ */
+        /* ปุ่มกด */
         .stButton button {
             border-radius: 10px;
             font-weight: 600;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: #2563eb;
             color: white;
             border: none;
-            padding: 0.6rem 1rem;
+            padding: 0.5rem 1rem;
             min-height: 42px;
-            transition: all 0.2s ease-in-out;
+            transition: all 0.2s;
         }
         .stButton button:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-            transform: translateY(-1px);
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
         }
 
-        /* Text Inputs & Selectboxes */
-        .stTextInput input {
-            background-color: #ffffff !important;
-            color: #0f172a !important;
+        /* Text Input & Selectbox */
+        .stTextInput input, .stSelectbox select {
             border-radius: 10px !important;
-            border: 1px solid rgba(30, 58, 138, 0.2) !important;
-            min-height: 42px;
+            border-color: #cbd5e1 !important;
         }
         
-        h4, h3, h2, h1 {
+        h4 {
             color: #1e3a8a !important;
             font-weight: 700 !important;
-            letter-spacing: -0.3px;
-        }
-
-        p, span, label, div {
-            color: #1e293b;
-        }
-
-        .metric-card-mobile {
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            font-size: 1.15rem !important;
+            margin-top: 10px !important;
+            margin-bottom: 12px !important;
         }
     </style>
 """,
@@ -128,35 +110,35 @@ if "active_ticker" not in st.session_state:
 # --- ส่วนหัวของแอปพลิเคชัน ---
 st.markdown(
     """
-    <div class="main-header">
+    <div class="app-header">
         <h1>📈 Chanthaluecha Intelligence Dashboard</h1>
-        <p>ระบบวิเคราะห์ข้อมูลหลักทรัพย์ ทางเทคนิคเชิงลึก EMA, แนวรับ-แนวต้าน, Fibonacci และระบบบันทึกกลยุทธ์ส่วนบุคคล</p>
+        <p>Advanced Technical Analysis, Support/Resistance, Fibonacci & Portfolio Strategy System</p>
     </div>
 """,
     unsafe_allow_html=True,
 )
 
-# --- แผงค้นหาหุ้นอิสระ ---
+# --- แผงค้นหาหลักทรัพย์ ---
 search_col1, search_col2, search_col3 = st.columns([3, 1, 1], gap="small")
 
 with search_col1:
   user_typed_ticker = st.text_input(
-      "🔍 พิมพ์รหัสหุ้นที่ต้องการค้นหา (เช่น BDMS, PTT, IVV, VT, AAPL):",
+      "🔍 ค้นหารหัสหลักทรัพย์ (เช่น BDMS, PTT, IVV, VT, AAPL):",
       value=st.session_state.active_ticker.replace(".BK", ""),
-      placeholder="พิมพ์รหัสหุ้นแล้วกด Enter...",
+      placeholder="พิมพ์รหัสหุ้น...",
       key="free_stock_input",
   )
 
 with search_col2:
   st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
-  if st.button("🔍 ค้นหาข้อมูล", use_container_width=True):
+  if st.button("🔍 ค้นหา", use_container_width=True):
     if user_typed_ticker.strip():
       st.session_state.active_ticker = user_typed_ticker.strip().upper()
       st.rerun()
 
 with search_col3:
   st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
-  if st.button("🔄 รีเซ็ตค่า", use_container_width=True):
+  if st.button("🔄 รีเซ็ต", use_container_width=True):
     st.session_state.active_ticker = "BDMS"
     st.rerun()
 
@@ -346,13 +328,14 @@ try:
         else ticker_symbol.upper()
     )
     st.markdown(
-        f"### 📊 ภาพรวมหลักทรัพย์: **{company_name}** (`{display_ticker_label}`)"
+        f"### 📊 Security Overview: **{company_name}** (`{display_ticker_label}`)"
     )
 
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
+    # 4 Metrics หลักด้านบน
+    col1, col2, col3, col4 = st.columns(4, gap="small")
     with col1:
       st.metric(
-          "ราคาปัจจุบัน",
+          "Current Price",
           f"{current_price:,.2f}"
           if isinstance(current_price, (int, float))
           else "N/A",
@@ -363,7 +346,7 @@ try:
       formatted_cap = (
           f"{market_cap:,.0f}" if isinstance(market_cap, (int, float)) else "N/A"
       )
-      st.metric("มูลค่าตลาด (Market Cap)", formatted_cap)
+      st.metric("Market Cap", formatted_cap)
     with col3:
       high_52 = info.get("fiftyTwoWeekHigh", "N/A")
       st.metric(
@@ -393,9 +376,7 @@ try:
         ticker_symbol, interval="1wk", period="1y"
     )
 
-    st.markdown(
-        "#### 🎯 วิเคราะห์แนวรับ - แนวต้าน (Support & Resistance - 4 Timeframes)"
-    )
+    st.markdown("#### 🎯 Support & Resistance (4 Timeframes)")
     sr_col1, sr_col2, sr_col3, sr_col4 = st.columns(4, gap="small")
 
     with sr_col1:
@@ -403,10 +384,10 @@ try:
       res_text = f"{res_1h:,.2f}" if res_1h else "N/A"
       st.markdown(
           f"""
-            <div class='metric-card-mobile'>
-                <strong>⏱️ 1 ชั่วโมง (1H)</strong><br>
-                🟢 รับ: <b>{sup_text}</b><br>
-                🔴 ต้าน: <b>{res_text}</b>
+            <div class='metric-card'>
+                <strong>⏱️ 1 Hour (1H)</strong><br><br>
+                🟢 Support: <b>{sup_text}</b><br>
+                🔴 Resistance: <b>{res_text}</b>
             </div>
         """,
           unsafe_allow_html=True,
@@ -417,10 +398,10 @@ try:
       res_text = f"{res_4h:,.2f}" if res_4h else "N/A"
       st.markdown(
           f"""
-            <div class='metric-card-mobile'>
-                <strong>⏱️ 4 ชั่วโมง (4H)</strong><br>
-                🟢 รับ: <b>{sup_text}</b><br>
-                🔴 ต้าน: <b>{res_text}</b>
+            <div class='metric-card'>
+                <strong>⏱️ 4 Hours (4H)</strong><br><br>
+                🟢 Support: <b>{sup_text}</b><br>
+                🔴 Resistance: <b>{res_text}</b>
             </div>
         """,
           unsafe_allow_html=True,
@@ -431,10 +412,10 @@ try:
       res_text = f"{res_d:,.2f}" if res_d else "N/A"
       st.markdown(
           f"""
-            <div class='metric-card-mobile'>
-                <strong>📅 รายวัน (Daily)</strong><br>
-                🟢 รับ: <b>{sup_text}</b><br>
-                🔴 ต้าน: <b>{res_text}</b>
+            <div class='metric-card'>
+                <strong>📅 Daily (1D)</strong><br><br>
+                🟢 Support: <b>{sup_text}</b><br>
+                🔴 Resistance: <b>{res_text}</b>
             </div>
         """,
           unsafe_allow_html=True,
@@ -445,10 +426,10 @@ try:
       res_text = f"{res_w:,.2f}" if res_w else "N/A"
       st.markdown(
           f"""
-            <div class='metric-card-mobile'>
-                <strong>📆 รายสัปดาห์ (Weekly)</strong><br>
-                🟢 รับ: <b>{sup_text}</b><br>
-                🔴 ต้าน: <b>{res_text}</b>
+            <div class='metric-card'>
+                <strong>📆 Weekly (1W)</strong><br><br>
+                🟢 Support: <b>{sup_text}</b><br>
+                🔴 Resistance: <b>{res_text}</b>
             </div>
         """,
           unsafe_allow_html=True,
@@ -491,27 +472,27 @@ try:
       items = list(active_fib.items())
       with f_col1:
         st.markdown(
-            f"<div class='metric-card-mobile'>🔸 <b>{items[0][0]}</b><br>`{items[0][1]:,.2f}`<br><br>🔸 <b>{items[1][0]}</b><br>`{items[1][1]:,.2f}`</div>",
+            f"<div class='metric-card'>🔸 <b>{items[0][0]}</b><br>`{items[0][1]:,.2f}`<br><br>🔸 <b>{items[1][0]}</b><br>`{items[1][1]:,.2f}`</div>",
             unsafe_allow_html=True,
         )
       with f_col2:
         st.markdown(
-            f"<div class='metric-card-mobile'>🔸 <b>{items[2][0]}</b><br>`{items[2][1]:,.2f}`<br><br>🔸 <b>{items[3][0]}</b><br>`{items[3][1]:,.2f}`</div>",
+            f"<div class='metric-card'>🔸 <b>{items[2][0]}</b><br>`{items[2][1]:,.2f}`<br><br>🔸 <b>{items[3][0]}</b><br>`{items[3][1]:,.2f}`</div>",
             unsafe_allow_html=True,
         )
       with f_col3:
         st.markdown(
-            f"<div class='metric-card-mobile' style='border-color: #3b82f6;'>⭐ <b>{items[4][0]}</b><br><b>`{items[4][1]:,.2f}`</b></div>",
+            f"<div class='metric-card' style='border-color: #3b82f6; background-color: #eff6ff;'>⭐ <b>{items[4][0]}</b><br><b>`{items[4][1]:,.2f}`</b></div>",
             unsafe_allow_html=True,
         )
       with f_col4:
         st.markdown(
-            f"<div class='metric-card-mobile'>🔸 <b>{items[5][0]}</b><br>`{items[5][1]:,.2f}`</div>",
+            f"<div class='metric-card'>🔸 <b>{items[5][0]}</b><br>`{items[5][1]:,.2f}`</div>",
             unsafe_allow_html=True,
         )
       with f_col5:
         st.markdown(
-            f"<div class='metric-card-mobile'>🔸 <b>{items[6][0]}</b><br>`{items[6][1]:,.2f}`</div>",
+            f"<div class='metric-card'>🔸 <b>{items[6][0]}</b><br>`{items[6][1]:,.2f}`</div>",
             unsafe_allow_html=True,
         )
     else:
@@ -521,7 +502,7 @@ try:
 
     # --- กราฟทางเทคนิค ---
     st.markdown(
-        "#### 📉 กราฟวิเคราะห์ทางเทคนิค (Price, EMA, S/R & Fibonacci Overlay)"
+        "#### 📉 Technical Chart (Price, EMA, S/R & Fibonacci Overlay)"
     )
     ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(
         4, gap="small"
@@ -529,7 +510,7 @@ try:
 
     with ctrl_col1:
       chart_timeframe_interval = st.selectbox(
-          "ไทม์เฟรมแท่งเทียน:",
+          "Candle Timeframe:",
           [
               "ราย 1 ชั่วโมง (1H)",
               "ราย 4 ชั่วโมง (4H)",
@@ -542,7 +523,7 @@ try:
 
     with ctrl_col2:
       chart_history_period = st.selectbox(
-          "ช่วงเวลากราฟย้อนหลัง:",
+          "Chart History Period:",
           ["1 เดือน", "3 เดือน", "6 เดือน", "1 ปี", "3 ปี", "5 ปี"],
           index=3,
           key="chart_history_period_selectbox",
@@ -550,7 +531,7 @@ try:
 
     with ctrl_col3:
       sr_overlay_tf = st.selectbox(
-          "แสดงเส้นแนวรับ/ต้าน:",
+          "S/R Overlay Timeframe:",
           [
               "รายวัน (Daily)",
               "ราย 1 ชั่วโมง (1H)",
@@ -563,9 +544,7 @@ try:
 
     with ctrl_col4:
       st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
-      show_fib_lines = st.checkbox(
-          "เปิดแสดงเส้น Fibonacci บนกราฟ", value=False
-      )
+      show_fib_lines = st.checkbox("Show Fibonacci Lines on Chart", value=False)
 
 
     # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตามจำนวนแท่งเทียนของไทม์เฟรมนั้นๆ
@@ -808,7 +787,7 @@ try:
     col_news, col_analysis = st.columns(2, gap="medium")
 
     with col_news:
-      st.markdown("#### 📰 ข่าวสารและประกาศสำคัญจากเว็บยอดนิยม")
+      st.markdown("#### 📰 News & Important Announcements")
       is_thai_stock = ticker_symbol.endswith(".BK")
       clean_symbol = display_ticker_label.upper()
 
@@ -820,37 +799,22 @@ try:
         thunhoon_url = f"https://thunhoon.com/search?keyword={clean_symbol}"
         trader_url = f"https://www.efinancethai.com/LastestNews/LatestNewsMain.aspx?ref=symbol&id={clean_symbol}"
 
+        st.markdown("🇹🇭 **ศูนย์รวมข่าวสารหลักทรัพย์ไทย:**")
         st.markdown(
-            "🇹🇭 **ศูนย์รวมข่าวสารหลักทรัพย์ไทย (คลิกเปิดเว็บไซต์):**"
+            f"👉 **[1. ทันหุ้น (Thunhoon): {clean_symbol}]({thunhoon_url})**"
         )
-        st.markdown(
-            f"👉 **[1. ข่าวทันหุ้น (Thunhoon): ค้นหาข่าว {clean_symbol}]({thunhoon_url})**"
-        )
-        st.markdown(
-            f"👉 **[2. ข่าวตลาดหลักทรัพย์และงบการเงิน (SET.or.th)]({set_url})**"
-        )
-        st.markdown(
-            f"👉 **[3. หน้าข่าวและการซื้อขายเรียลไทม์ (Settrade)]({settrade_url})**"
-        )
-        st.markdown(
-            f"👉 **[4. บทวิเคราะห์เจาะลึกหุ้น {clean_symbol} (eFinanceThai)]({trader_url})**"
-        )
+        st.markdown(f"👉 **[2. ตลาดหลักทรัพย์ (SET.or.th)]({set_url})**")
+        st.markdown(f"👉 **[3. เซทเทรด (Settrade)]({settrade_url})**")
+        st.markdown(f"👉 **[4. eFinanceThai Analysis]({trader_url})**")
         st.markdown("---")
       else:
         yahoo_news_url = (
             f"https://finance.yahoo.com/quote/{clean_symbol}/news/"
         )
         seeking_alpha_url = f"https://seekingalpha.com/symbol/{clean_symbol}"
-        st.markdown(
-            "🇺🇸 **ศูนย์รวมข่าวสารหลักทรัพย์/ETF สากล (คลิกเปิดเว็บไซต์):**"
-        )
-        st.markdown(
-            f"👉 **[1. ข่าวสารล่าสุดจาก Yahoo Finance ({clean_symbol})]"
-            f"({yahoo_news_url})**"
-        )
-        st.markdown(
-            f"👉 **[2. บทวิเคราะห์มุมมองนักลงทุน (Seeking Alpha)]({seeking_alpha_url})**"
-        )
+        st.markdown("🇺🇸 **International Market News Sources:**")
+        st.markdown(f"👉 **[1. Yahoo Finance News]({yahoo_news_url})**")
+        st.markdown(f"👉 **[2. Seeking Alpha]({seeking_alpha_url})**")
         st.markdown("---")
 
       if news:
@@ -872,7 +836,7 @@ try:
         if filtered_news:
           filtered_news.sort(key=lambda x: x[0], reverse=True)
           st.markdown(
-              "<span style='font-size: 0.85rem; color: #64748b;'>หัวข้อข่าวอัปเดตล่าสุด:</span>",
+              "<span style='font-size: 0.85rem; color: #64748b;'>Latest Headlines:</span>",
               unsafe_allow_html=True,
           )
           for news_date, item in filtered_news[:3]:
@@ -881,13 +845,13 @@ try:
             link = item.get("link", "#")
 
             st.markdown(f"🔹 **[{title}]({link})**")
-            st.caption(f"สำนักข่าว: {publisher}")
+            st.caption(f"Source: {publisher}")
             st.markdown("---")
 
     with col_analysis:
-      st.markdown("#### ✍️ บันทึกบทวิเคราะห์และแผนการลงทุน")
+      st.markdown("#### ✍️ Investment Strategy & Personal Notes")
       st.markdown(
-          "<span style='color: #334155; font-size: 0.9rem;'>จดบันทึกมุมมองพื้นฐาน"
+          "<span style='color: #334155; font-size: 0.9rem;'>บันทึกมุมมองพื้นฐาน"
           " สัญญาณเทคนิค หรือแผน DCA ส่วนตัวของคุณ:</span>",
           unsafe_allow_html=True,
       )
@@ -897,17 +861,17 @@ try:
 
       current_note = st.session_state.analysis_notes.get(
           display_ticker_label,
-          f"บทวิเคราะห์สำหรับ {display_ticker_label}:\n- มุมมองพื้นฐาน/ปันผล:\n- สัญญาณทางเทคนิค (EMA 35/50/89/200):\n- แผนการลงทุน/DCA:",
+          f"Analysis for {display_ticker_label}:\n- Fundamental/Dividend View:\n- Technical Signals (EMA 35/50/89/200):\n- DCA & Investment Plan:",
       )
 
       user_analysis = st.text_area(
-          "พื้นที่เขียนบทวิเคราะห์",
+          "Personal Note Editor",
           current_note,
           height=230,
           label_visibility="collapsed",
       )
 
-      if st.button("💾 บันทึกบทวิเคราะห์นี้", use_container_width=True):
+      if st.button("💾 Save Analysis Notes", use_container_width=True):
         st.session_state.analysis_notes[display_ticker_label] = user_analysis
         st.success("บันทึกข้อมูลเรียบร้อยแล้ว!")
 

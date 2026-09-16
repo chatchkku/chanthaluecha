@@ -499,17 +499,22 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- กราฟทางเทคนิค ---
+    # --- กราฟทางเทคนิค พร้อมเลือก Timeframe อิสระและคำนวณ EMA ตามไทม์เฟรม ---
     st.markdown(
         "#### 📉 กราฟวิเคราะห์ทางเทคนิค (Price, EMA, S/R & Fibonacci Overlay)"
     )
     ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 1], gap="small")
     with ctrl_col1:
-      chart_period = st.radio(
-          "ช่วงเวลากราฟ:",
-          ["1 เดือน", "3 เดือน", "6 เดือน", "1 ปี"],
-          index=1,
-          horizontal=True,
+      chart_tf_choice = st.selectbox(
+          "ไทม์เฟรมนกราฟ:",
+          [
+              "รายวัน (Daily)",
+              "ราย 1 ชั่วโมง (1H)",
+              "ราย 4 ชั่วโมง (4H)",
+              "รายสัปดาห์ (Weekly)",
+          ],
+          index=0,
+          key="chart_tf_selectbox",
       )
     with ctrl_col2:
       sr_overlay_tf = st.selectbox(
@@ -521,6 +526,7 @@ try:
               "รายสัปดาห์ (Weekly)",
           ],
           index=0,
+          key="sr_overlay_selectbox",
       )
     with ctrl_col3:
       st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
@@ -528,17 +534,78 @@ try:
           "เปิดแสดงเส้น Fibonacci บนกราฟ", value=False
       )
 
-    interval_map = {
-        "1 เดือน": ("1d", "1mo"),
-        "3 เดือน": ("1d", "3mo"),
-        "6 เดือน": ("1d", "6mo"),
-        "1 ปี": ("1d", "1y"),
-    }
 
-    yf_interval, yf_period = interval_map[chart_period]
-    plot_data = stock.history(period=yf_period, interval=yf_interval)
+    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณตาม Timeframe ที่เลือก
+    def get_chart_plot_data(ticker_str, tf_choice):
+      try:
+        if "1 ชั่วโมง" in tf_choice:
+          df = yf.download(
+              ticker_str,
+              period="14d",
+              interval="60m",
+              progress=False,
+              auto_adjust=True,
+          )
+          if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+          return df, "1H"
+        elif "4 ชั่วโมง" in tf_choice:
+          df = yf.download(
+              ticker_str,
+              period="60d",
+              interval="60m",
+              progress=False,
+              auto_adjust=True,
+          )
+          if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+          if not df.empty:
+            df = (
+                df.resample("4h")
+                .agg(
+                    {
+                        "Open": "first",
+                        "High": "max",
+                        "Low": "min",
+                        "Close": "last",
+                        "Volume": "sum",
+                    }
+                )
+                .dropna()
+            )
+          return df, "4H"
+        elif "รายสัปดาห์" in tf_choice:
+          df = yf.download(
+              ticker_str,
+              period="2y",
+              interval="1wk",
+              progress=False,
+              auto_adjust=True,
+          )
+          if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+          return df, "Weekly"
+        else:
+          df = yf.download(
+              ticker_str,
+              period="1y",
+              interval="1d",
+              progress=False,
+              auto_adjust=True,
+          )
+          if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+          return df, "Daily"
+      except Exception:
+        return pd.DataFrame(), "Daily"
+
+
+    plot_data, chart_tf_label = get_chart_plot_data(
+        ticker_symbol, chart_tf_choice
+    )
 
     if not plot_data.empty:
+      # คำนวณค่า EMA จากแท่งเทียนใน Timeframe ที่เลือกโดยตรง
       plot_data["EMA_35"] = plot_data["Close"].ewm(span=35, adjust=False).mean()
       plot_data["EMA_50"] = plot_data["Close"].ewm(span=50, adjust=False).mean()
       plot_data["EMA_89"] = plot_data["Close"].ewm(span=89, adjust=False).mean()
@@ -561,7 +628,7 @@ try:
           plot_data["Close"],
           color="#0284c7",
           linewidth=1.8,
-          label="Close Price",
+          label=f"Close ({chart_tf_label})",
       )
       ax.plot(
           plot_data.index,
@@ -644,8 +711,8 @@ try:
           )
 
       ax.set_title(
-          f"Technical Chart with {tf_label} S/R & Fibonacci -"
-          f" {display_ticker_label}",
+          f"Technical Chart ({chart_tf_label}) with {tf_label} S/R & Fibonacci"
+          f" - {display_ticker_label}",
           fontsize=11,
           fontweight="bold",
           color="#1e3a8a",

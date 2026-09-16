@@ -135,4 +135,4 @@ if ticker_input:
             st.success("บันทึกข้อมูลสำเร็จเรียบร้อยครับ!")
 
     except Exception as e:
-      st.error(fเกิดข้อผิดพลาดในการโหลดข้อมูล: {e}")
+      st.error(f"เกิดข้อผิดพลาดในการโหลดข้อมูล: {e}")

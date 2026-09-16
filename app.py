@@ -126,17 +126,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- ส่วนหัวของแอปพลิเคชัน (Hero Header) ---
-st.markdown(
-    """
-    <div class="main-header">
-        <h1>📈 Chanthaluecha Intelligence Dashboard</h1>
-        <p>ระบบวิเคราะห์ข้อมูลหลักทรัพย์ ทางเทคนิคเชิงลึก EMA, แนวรับ-แนวต้าน, Fibonacci และระบบบันทึกกลยุทธ์ส่วนบุคคล</p>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
 # --- จัดการระบบหุ้นโปรด (Favorites) ---
 if "favorites" not in st.session_state:
   st.session_state.favorites = [
@@ -149,52 +138,81 @@ if "favorites" not in st.session_state:
       "WHA",
   ]
 
-# --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) สำหรับควบคุมระบบ ---
+# ตัวแปรเก็บค่ารหัสหุ้นที่ถูกเลือก
+if "active_ticker" not in st.session_state:
+  st.session_state.active_ticker = "BDMS"
+
+# --- ส่วนหัวของแอปพลิเคชัน (Hero Header พร้อมช่องค้นหาด่วนด้านบน) ---
+st.markdown(
+    """
+    <div class="main-header">
+        <h1>📈 Chanthaluecha Intelligence Dashboard</h1>
+        <p>ระบบวิเคราะห์ข้อมูลหลักทรัพย์ ทางเทคนิคเชิงลึก EMA, แนวรับ-แนวต้าน, Fibonacci และระบบบันทึกกลยุทธ์ส่วนบุคคล</p>
+    </div>
+""",
+    unsafe_allow_html=True,
+)
+
+# --- แผงค้นหาหุ้นด่วนด้านบนสุด (Search Bar ด้านบน) ---
+search_col1, search_col2, search_col3 = st.columns([3, 1, 1], gap="small")
+with search_col1:
+  quick_search = st.text_input(
+      "🔍 ค้นหารหัสหุ้นด่วน (พิมพ์ชื่อหุ้นได้ทันที ไม่ต้องใส่ .BK):",
+      value="",
+      placeholder="เช่น PTT, PTTEP, AAPL, IVV",
+  )
+with search_col2:
+  st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
+  search_btn = st.button("🔎 ค้นหา", use_container_width=True)
+with search_col3:
+  st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
+  clear_btn = st.button("🔄 รีเซ็ต", use_container_width=True)
+
+if clear_btn:
+  st.session_state.active_ticker = "BDMS"
+  st.rerun()
+
+if search_btn and quick_search.strip() != "":
+  st.session_state.active_ticker = quick_search.strip().upper()
+
+# --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) ---
 with st.sidebar:
-  st.markdown("### ⚙️ ควบคุมพอร์ตและหลักทรัพย์")
+  st.markdown("### ⚙️ ควบคุมพอร์ตและหุ้นโปรด")
   st.markdown("---")
 
   st.markdown("⭐ **รายชื่อหุ้นโปรดของคุณ**")
   if st.session_state.favorites:
-    selected_fav = st.radio(
-        "เลือกหุ้น:",
+    selected_fav = st.selectbox(
+        "เลือกหุ้นจากรายการโปรด:",
         st.session_state.favorites,
-        key="fav_radio",
-        label_visibility="collapsed",
+        key="fav_selectbox",
     )
-    raw_ticker = selected_fav
+    # ถ้ามีการเลือกจาก selectbox ให้สลับมาเป็นตัวนี้
+    if selected_fav:
+      st.session_state.active_ticker = selected_fav
   else:
     st.info("ยังไม่มีหุ้นในรายการโปรด")
-    raw_ticker = "BDMS"
-
-  st.markdown("---")
-  st.markdown("🔍 **ค้นหาหลักทรัพย์อื่นๆ**")
-  custom_ticker = st.text_input(
-      "พิมพ์รหัสหุ้น:", "", placeholder="เช่น PTT, AAPL, IVV"
-  )
-  if custom_ticker and custom_ticker.strip() != "":
-    raw_ticker = custom_ticker.strip().upper()
-
-  # --- ระบบ Smart Ticker อัจฉริยะ (จัดการเติม .BK อัตโนมัติอย่างแม่นยำ) ---
-  raw_clean = raw_ticker.strip().upper()
-  if "." in raw_clean:
-    ticker_symbol = raw_clean
-  else:
-    # หากเป็นชื่อย่อหุ้นสั้นๆ ทั่วไป (เช่น PTT, BDMS, AOT) ให้ลองเติม .BK ก่อน
-    ticker_symbol = raw_clean + ".BK"
 
   st.markdown("---")
   col_f1, col_f2 = st.columns(2)
   with col_f1:
-    if st.button("⭐ เพิ่ม", use_container_width=True):
-      clean_fav = raw_clean.replace(".BK", "")
+    if st.button("⭐ เพิ่มหุ้นนี้", use_container_width=True):
+      clean_fav = (
+          st.session_state.active_ticker.upper()
+          .replace(".BK", "")
+          .strip()
+      )
       if clean_fav not in st.session_state.favorites:
         st.session_state.favorites.append(clean_fav)
         st.success(f"เพิ่ม {clean_fav} แล้ว!")
         st.rerun()
   with col_f2:
-    if st.button("🗑️ ลบ", use_container_width=True):
-      clean_fav = raw_clean.replace(".BK", "")
+    if st.button("🗑️ ลบหุ้นนี้", use_container_width=True):
+      clean_fav = (
+          st.session_state.active_ticker.upper()
+          .replace(".BK", "")
+          .strip()
+      )
       if clean_fav in st.session_state.favorites:
         st.session_state.favorites.remove(clean_fav)
         st.warning(f"ลบ {clean_fav} แล้ว!")
@@ -203,6 +221,14 @@ with st.sidebar:
   st.markdown("---")
   st.caption("💡 *ระบบประมวลผลข้อมูล Real-time ผ่าน Yahoo Finance*")
 
+# --- แปลงรหัสหุ้นให้อยู่ในรูปแบบที่ถูกต้อง (Smart Ticker) ---
+raw_clean = st.session_state.active_ticker.strip().upper()
+if "." in raw_clean:
+  ticker_symbol = raw_clean
+else:
+  # หากพิมพ์สั้นๆ ให้เติม .BK สำหรับหุ้นไทย
+  ticker_symbol = raw_clean + ".BK"
+
 
 # --- ฟังก์ชันดึงข้อมูลหุ้น (พร้อมระบบสำรองกรณีหุ้นต่างประเทศ) ---
 @st.cache_data(ttl=600)
@@ -210,7 +236,6 @@ def load_stock_data(ticker):
   stock_obj = yf.Ticker(ticker)
   hist = stock_obj.history(period="1y")
 
-  # ถ้าใส่หุ้นไทยแบบเติม .BK แล้วข้อมูลว่าง ให้ลองดึงแบบไม่มี .BK เผื่อเป็นหุ้นต่างประเทศ
   if hist.empty and ticker.endswith(".BK"):
     fallback_ticker = ticker.replace(".BK", "")
     stock_obj = yf.Ticker(fallback_ticker)
@@ -221,7 +246,7 @@ def load_stock_data(ticker):
   return hist, stock_obj.info, stock_obj.news, ticker
 
 
-# ฟังก์ชันคำนวณแนวรับ-แนวต้าน (Pivot Point Basis)
+# ฟังก์ชันคำนวณแนวรับ-แนวต้าน
 def calculate_support_resistance(ticker, interval, period):
   try:
     df = yf.download(
@@ -282,7 +307,7 @@ try:
 
   if hist is None or hist.empty:
     st.error(
-        f"⚠️ ไม่พบข้อมูลราคาสำหรับ `{raw_ticker}` กรุณาตรวจสอบรหัสใหม่อีกครั้ง"
+        f"⚠️ ไม่พบข้อมูลราคาสำหรับ `{raw_clean}` กรุณาตรวจสอบรหัสใหม่อีกครั้ง"
     )
   else:
     company_name = info.get("longName", ticker_symbol)
@@ -714,7 +739,7 @@ try:
 
 except Exception as e:
   st.error(
-      f"⚠️ เกิดข้อผิดพลาดในการโหลดข้อมูลหลักทรัพย์ `{raw_ticker}`"
+      f"⚠️ เกิดข้อผิดพลาดในการโหลดข้อมูลหลักทรัพย์ `{raw_clean}`"
       " หรือระบบอินเทอร์เน็ตขัดข้อง"
   )
   st.exception(e)

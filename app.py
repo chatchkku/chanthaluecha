@@ -171,13 +171,9 @@ if user_typed_ticker.strip():
   if cleaned_input != st.session_state.active_ticker.replace(".BK", ""):
     st.session_state.active_ticker = cleaned_input
 
-# --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) แบบคลีนๆ ---
+# --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) แบบโล่งสะอาด ---
 with st.sidebar:
   st.markdown("### ⚙️ ควบคุมพอร์ตและระบบ")
-  st.markdown("---")
-  st.markdown(
-      "📌 **คำแนะนำการค้นหา**\n- **หุ้นไทย (SET):** พิมพ์ชื่อย่อ เช่น `PTT`, `KBANK`, `BDMS`, `CPALL` (ระบบเติม .BK ให้เอง)\n- **หุ้น/ETF ต่างประเทศ:** พิมพ์รหัสสากลได้ทันที เช่น `IVV`, `VT`, `AAPL`, `TSLA`, `MSFT`"
-  )
   st.markdown("---")
   st.caption("💡 *ระบบประมวลผลข้อมูล Real-time ผ่าน Yahoo Finance*")
 
@@ -199,7 +195,6 @@ us_market_indicators = [
 if "." in raw_clean or raw_clean in us_market_indicators or len(raw_clean) > 5:
   ticker_symbol = raw_clean
 else:
-  # หากเป็นหุ้นสั้นทั่วไป ตรวจสอบว่ามีข้อมูลแบบหุ้นไทยหรือสากล
   ticker_symbol = raw_clean
 
 
@@ -209,7 +204,6 @@ def load_stock_data(ticker):
   stock_obj = yf.Ticker(ticker)
   hist = stock_obj.history(period="1y")
 
-  # ถ้าไม่พบข้อมูล ลองเติม .BK เผื่อเป็นหุ้นไทย
   if hist.empty and not ticker.endswith(".BK"):
     fallback_ticker = ticker + ".BK"
     stock_obj = yf.Ticker(fallback_ticker)
@@ -220,14 +214,43 @@ def load_stock_data(ticker):
   return hist, stock_obj.info, stock_obj.news, ticker
 
 
-# ฟังก์ชันคำนวณแนวรับ-แนวต้าน
+# ฟังก์ชันคำนวณแนวรับ-แนวต้าน (รองรับการแปลง 4H จากข้อมูล 1H เพื่อความเสถียร)
 def calculate_support_resistance(ticker, interval, period):
   try:
-    df = yf.download(
-        ticker, period=period, interval=interval, progress=False, auto_adjust=True
-    )
-    if isinstance(df.columns, pd.MultiIndex):
-      df.columns = df.columns.get_level_values(0)
+    if interval == "240m":
+      # ดึงข้อมูลราย 1 ชั่วโมง (60m) ย้อนหลัง 60 วัน เพื่อมาแปลงเป็นแท่ง 4H ป้องกันข้อผิดพลาดของ API
+      df = yf.download(
+          ticker, period="60d", interval="60m", progress=False, auto_adjust=True
+      )
+      if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+      if df.empty or len(df) < 5:
+        return None, None
+      # Resample รวมแท่งเทียน 1H ให้เป็น 4H
+      df = (
+          df.resample("4h")
+          .agg(
+              {
+                  "Open": "first",
+                  "High": "max",
+                  "Low": "min",
+                  "Close": "last",
+                  "Volume": "sum",
+              }
+          )
+          .dropna()
+      )
+    else:
+      df = yf.download(
+          ticker,
+          period=period,
+          interval=interval,
+          progress=False,
+          auto_adjust=True,
+      )
+      if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
     if df.empty or len(df) < 5:
       return None, None
 
@@ -247,11 +270,38 @@ def calculate_support_resistance(ticker, interval, period):
 # ฟังก์ชันคำนวณ Fibonacci Retracement Levels
 def calculate_fibonacci_levels(ticker, interval, period):
   try:
-    df = yf.download(
-        ticker, period=period, interval=interval, progress=False, auto_adjust=True
-    )
-    if isinstance(df.columns, pd.MultiIndex):
-      df.columns = df.columns.get_level_values(0)
+    if interval == "240m":
+      df = yf.download(
+          ticker, period="60d", interval="60m", progress=False, auto_adjust=True
+      )
+      if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+      if df.empty or len(df) < 5:
+        return None
+      df = (
+          df.resample("4h")
+          .agg(
+              {
+                  "Open": "first",
+                  "High": "max",
+                  "Low": "min",
+                  "Close": "last",
+                  "Volume": "sum",
+              }
+          )
+          .dropna()
+      )
+    else:
+      df = yf.download(
+          ticker,
+          period=period,
+          interval=interval,
+          progress=False,
+          auto_adjust=True,
+      )
+      if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
     if df.empty or len(df) < 5:
       return None
 

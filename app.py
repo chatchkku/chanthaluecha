@@ -180,15 +180,14 @@ set50_list = [
     "WHA",
 ]
 
-# --- จัดการระบบหุ้นโปรด (Favorites) ---
+# --- จัดการระบบหุ้นโปรด (Favorites) และ Active Ticker ---
 if "favorites" not in st.session_state:
   st.session_state.favorites = set50_list
 
-# ตัวแปรเก็บค่ารหัสหุ้นที่ถูกเลือก
 if "active_ticker" not in st.session_state:
   st.session_state.active_ticker = "BDMS"
 
-# --- ส่วนหัวของแอปพลิเคชัน (Hero Header พร้อมช่องค้นหาด่วนด้านบน) ---
+# --- ส่วนหัวของแอปพลิเคชัน ---
 st.markdown(
     """
     <div class="main-header">
@@ -199,13 +198,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- แผงค้นหาหุ้นด่วนด้านบนสุด (Search Bar ด้านบน) ---
+# --- แผงค้นหาหุ้นด่วนด้านบนสุด (เชื่อมโยง Session State โดยตรง) ---
 search_col1, search_col2, search_col3 = st.columns([3, 1, 1], gap="small")
+
 with search_col1:
   quick_search = st.text_input(
       "🔍 ค้นหารหัสหุ้นด่วน (พิมพ์ชื่อหุ้นได้ทันที ไม่ต้องใส่ .BK):",
-      value="",
-      placeholder="เช่น PTT, PTTEP, AAPL, IVV",
+      value=st.session_state.active_ticker.replace(".BK", ""),
+      placeholder="เช่น TTB, SCB, PTT, IVV",
+      key="quick_search_input",
   )
 with search_col2:
   st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
@@ -220,6 +221,7 @@ if clear_btn:
 
 if search_btn and quick_search.strip() != "":
   st.session_state.active_ticker = quick_search.strip().upper()
+  st.rerun()
 
 # --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) ---
 with st.sidebar:
@@ -228,14 +230,23 @@ with st.sidebar:
 
   st.markdown("⭐ **รายชื่อหุ้น SET50 ในระบบ**")
   if st.session_state.favorites:
+    # ตรวจสอบว่า active_ticker ปัจจุบันอยู่ในลิสต์หรือไม่ เพื่อป้องกัน Error ของ selectbox
+    current_active = st.session_state.active_ticker.replace(".BK", "")
+    default_index = (
+        st.session_state.favorites.index(current_active)
+        if current_active in st.session_state.favorites
+        else 0
+    )
+
     selected_fav = st.selectbox(
         "เลือกหุ้นจากกลุ่ม SET50:",
         st.session_state.favorites,
+        index=default_index,
         key="fav_selectbox",
     )
-    # ถ้ามีการเลือกจาก selectbox ให้สลับมาเป็นตัวนี้
-    if selected_fav:
+    if selected_fav and selected_fav != current_active:
       st.session_state.active_ticker = selected_fav
+      st.rerun()
   else:
     st.info("ยังไม่มีหุ้นในรายการโปรด")
 
@@ -272,11 +283,10 @@ raw_clean = st.session_state.active_ticker.strip().upper()
 if "." in raw_clean:
   ticker_symbol = raw_clean
 else:
-  # หากพิมพ์สั้นๆ ให้เติม .BK สำหรับหุ้นไทย
   ticker_symbol = raw_clean + ".BK"
 
 
-# --- ฟังก์ชันดึงข้อมูลหุ้น (พร้อมระบบสำรองกรณีหุ้นต่างประเทศ) ---
+# --- ฟังก์ชันดึงข้อมูลหุ้น ---
 @st.cache_data(ttl=600)
 def load_stock_data(ticker):
   stock_obj = yf.Ticker(ticker)

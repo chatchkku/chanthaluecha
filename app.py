@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="My Smart Investment App", layout="wide", page_icon="📈")
 
 # ==========================================
-# 2. ฟังก์ชันดึงข้อมูลหุ้น
+# 2. ฟังก์ชันดึงข้อมูลหุ้น (พร้อมระบบเติม .BK อัตโนมัติ)
 # ==========================================
 @st.cache_data(ttl=600)
 def load_stock_data(ticker):
@@ -48,20 +48,20 @@ st.markdown("ระบบวิเคราะห์หุ้น: พื้น�
 ticker_input = st.text_input("🔍 พิมพ์ชื่อหุ้น (เช่น BDMS, TCAP, IVV, AAPL):", "BDMS")
 
 if ticker_input:
-    with st.spinner('กำลังดึงข้อมูล...'):
+    with st.spinner('กำลังดึงข้อมูลจากตลาด...'):
         hist, info, resolved_ticker = load_stock_data(ticker_input)
         
     if hist.empty:
-        st.error(f"❌ ไม่พบข้อมูลสำหรับหุ้น {ticker_input} หรือเกิดข้อผิดพลาดในการดึงข้อมูล")
+        st.error(f"❌ ไม่พบข้อมูลสำหรับหุ้น {ticker_input} กรุณาตรวจสอบชื่อย่อใหม่อีกครั้ง")
     else:
-        # จัดการกรณีคอลัมน์เป็น MultiIndex (ป้องกัน error)
+        # จัดการกรณีคอลัมน์เป็น MultiIndex ของ yfinance เวอร์ชันใหม่
         if isinstance(hist.columns, pd.MultiIndex):
             hist.columns = hist.columns.get_level_values(0)
             
         st.success(f"✅ พบข้อมูลหุ้น: {resolved_ticker} (อัปเดตล่าสุด: {hist.index[-1].strftime('%Y-%m-%d')})")
         
-        # --- ส่วนที่ 1: อัตราส่วนทางการเงินพื้นฐาน ---
-        st.subheader("📊 1. อัตราส่วนทางการเงินพื้นฐาน (Fundamentals)")
+        # --- ส่วนที่ 1: อัตราส่วนทางการเงินพื้นฐาน (Fundamentals) ---
+        st.subheader("📊 1. อัตราส่วนทางการเงินพื้นฐาน")
         
         pe_ratio = info.get("trailingPE", "N/A")
         pb_ratio = info.get("priceToBook", "N/A")
@@ -73,19 +73,19 @@ if ticker_input:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             val_pe = f"{pe_ratio:.2f}" if isinstance(pe_ratio, (int, float)) else str(pe_ratio)
-            st.metric(label="P/E Ratio", value=val_pe, help="ไม่ควรสูงเกินไป (ขึ้นอยู่กับกลุ่มอุตสาหกรรม)")
+            st.metric(label="P/E Ratio", value=val_pe, help="ประเมินความถูกแพงและระยะเวลาคืนทุน")
         with col2:
             val_pb = f"{pb_ratio:.2f}" if isinstance(pb_ratio, (int, float)) else str(pb_ratio)
-            st.metric(label="P/BV Ratio", value=val_pb, help="เทียบมูลค่าทางบัญชี")
+            st.metric(label="P/BV Ratio", value=val_pb, help="เทียบราคาหุ้นกับมูลค่าทางบัญชี")
         with col3:
-            st.metric(label="ROE", value=roe_str, help="ความสามารถในการทำกำไร ยิ่งสูงยิ่งดี")
+            st.metric(label="ROE", value=roe_str, help="ความสามารถในการทำกำไรจากส่วนของผู้ถือหุ้น")
         with col4:
-            st.metric(label="Dividend Yield", value=div_yield_str, help="เงินปันผลตอบแทน")
+            st.metric(label="Dividend Yield", value=div_yield_str, help="อัตราส่วนเงินปันผลตอบแทน")
             
         st.divider()
 
         # --- ส่วนที่ 2: กราฟเทคนิค และ แนวรับ-แนวต้าน ---
-        st.subheader("📉 2. การวิเคราะห์ทางเทคนิค (Technical Analysis)")
+        st.subheader("📉 2. การวิเคราะห์ทางเทคนิค & แนวรับ-แนวต้าน")
         
         try:
             last_day = hist.iloc[-2] if len(hist) > 1 else hist.iloc[-1]
@@ -97,17 +97,21 @@ if ticker_input:
             st.markdown(f"**จุดหมุน (Pivot):** {PP:.2f} | **แนวต้าน (R1):** <span style='color:red;'>{R1:.2f}</span> | **แนวรับ (S1):** <span style='color:green;'>{S1:.2f}</span>", unsafe_allow_html=True)
             
             fig = go.Figure()
+            
+            # กราฟแท่งเทียน
             fig.add_trace(go.Candlestick(x=hist.index, open=hist['Open'], high=hist['High'], low=hist['Low'], close=hist['Close'], name='Price'))
             
+            # เส้นค่าเฉลี่ย EMA 50 และ 200
             hist['EMA50'] = hist['Close'].ewm(span=50, adjust=False).mean()
             hist['EMA200'] = hist['Close'].ewm(span=200, adjust=False).mean()
             
             fig.add_trace(go.Scatter(x=hist.index, y=hist['EMA50'], line=dict(color='blue', width=1.5), name='EMA 50'))
             fig.add_trace(go.Scatter(x=hist.index, y=hist['EMA200'], line=dict(color='orange', width=2), name='EMA 200'))
             
+            # เส้นแนวรับแนวต้านแนวนอน (30 วันล่าสุด)
             recent_dates = hist.index[-30:] if len(hist) >= 30 else hist.index
             fig.add_trace(go.Scatter(x=recent_dates, y=[R1]*len(recent_dates), line=dict(color='red', width=2, dash='dash'), name='Resistance (R1)'))
-            fig.add_trace(go.Scatter(*recent_dates, y=[S1]*len(recent_dates), line=dict(color='green', width=2, dash='dash'), name='Support (S1)')) # Note: corrected syntax below if needed, or keep standard
+            fig.add_trace(go.Scatter(x=recent_dates, y=[S1]*len(recent_dates), line=dict(color='green', width=2, dash='dash'), name='Support (S1)'))
             
             fig.update_layout(height=600, xaxis_rangeslider_visible=False, template="plotly_white", margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig, use_container_width=True)
@@ -116,7 +120,7 @@ if ticker_input:
         
         st.divider()
 
-        # --- ส่วนที่ 3: เช็กลิสต์และบันทึกการตัดสินใจ ---
+        # --- ส่วนที่ 3: เช็กลิสต์และบันทึกการลงทุน ---
         st.subheader("📝 3. บันทึกการลงทุน (Trade Journal & Checklist)")
         with st.form("trade_journal_form"):
             st.markdown("**Checklist ก่อนตัดสินใจซื้อ/ขาย:**")
@@ -128,6 +132,6 @@ if ticker_input:
                 st.checkbox("📊 เทรนด์ใหญ่ยังเป็นขาขึ้น (ยืนเหนือ EMA 200)")
                 st.checkbox("🗓️ สอดคล้องกับแผน DCA ระยะยาว")
             
-            st.text_area("บันทึกเหตุผลของคุณ:", placeholder="บันทึกเหตุผลประกอบการลงทุน...")
+            st.text_area("บันทึกเหตุผลของคุณ:", placeholder="บันทึกแผนการลงทุน ราคาเป้าหมาย หรือเหตุผลในการเข้าซื้อ...")
             if st.form_submit_button(label="💾 บันทึกข้อมูล"):
                 st.success("บันทึกข้อมูลเรียบร้อยแล้ว!")

@@ -198,15 +198,16 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- แผงค้นหาหุ้นด่วนด้านบนสุด (เชื่อมโยง Session State โดยตรง) ---
+# --- แผงค้นหาหุ้นด่วนด้านบนสุด (แก้ไขการรับค่าแบบอิสระ ไม่ติดล็อก Session State) ---
 search_col1, search_col2, search_col3 = st.columns([3, 1, 1], gap="small")
 
 with search_col1:
+  # ใช้ key แยกต่างหากเพื่อให้พิมพ์ได้อิสระโดยไม่ถูกบังคับค่าเก่าทับ
   quick_search = st.text_input(
       "🔍 ค้นหารหัสหุ้นด่วน (พิมพ์ชื่อหุ้นได้ทันที ไม่ต้องใส่ .BK):",
-      value=st.session_state.active_ticker.replace(".BK", ""),
-      placeholder="เช่น TTB, SCB, PTT, IVV",
-      key="quick_search_input",
+      value="",
+      placeholder="เช่น CPALL, TTB, SCB, PTT, IVV",
+      key="search_input_box",
   )
 with search_col2:
   st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
@@ -219,6 +220,7 @@ if clear_btn:
   st.session_state.active_ticker = "BDMS"
   st.rerun()
 
+# เมื่อกดปุ่มค้นหา ดึงข้อความจากกล่องพิมพ์มาตั้งเป็น Active Ticker ทันที
 if search_btn and quick_search.strip() != "":
   st.session_state.active_ticker = quick_search.strip().upper()
   st.rerun()
@@ -230,7 +232,6 @@ with st.sidebar:
 
   st.markdown("⭐ **รายชื่อหุ้น SET50 ในระบบ**")
   if st.session_state.favorites:
-    # ตรวจสอบว่า active_ticker ปัจจุบันอยู่ในลิสต์หรือไม่ เพื่อป้องกัน Error ของ selectbox
     current_active = st.session_state.active_ticker.replace(".BK", "")
     default_index = (
         st.session_state.favorites.index(current_active)

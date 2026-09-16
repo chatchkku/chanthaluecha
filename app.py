@@ -499,19 +499,31 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- กราฟทางเทคนิค พร้อม Dropdown เลือกช่วงเวลากราฟย้อนหลัง (คำนวณ EMA ตามไทม์เฟรมที่เลือกเท่านั้น) ---
+    # --- กราฟทางเทคนิค (แยกช่อง: 1. ไทม์เฟรมแท่งเทียน | 2. ช่วงเวลากราฟย้อนหลัง | 3. แนวรับ-ต้าน | 4. ฟิโบนักชี) ---
     st.markdown(
         "#### 📉 กราฟวิเคราะห์ทางเทคนิค (Price, EMA, S/R & Fibonacci Overlay)"
     )
-    ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 1], gap="small")
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(
+        4, gap="small"
+    )
+
     with ctrl_col1:
+      chart_timeframe_interval = st.selectbox(
+          "ไทม์เฟรมแท่งเทียน:",
+          ["รายวัน (1D)", "ราย 1 ชั่วโมง (1H)", "ราย 4 ชั่วโมง (4H)", "รายสัปดาห์ (1W)"],
+          index=0,
+          key="chart_tf_interval_selectbox",
+      )
+
+    with ctrl_col2:
       chart_history_period = st.selectbox(
-          "ไทม์เฟรม/ช่วงเวลากราฟย้อนหลัง:",
-          ["1 เดือน", "3 เดือน", "6 เดือน", "1 ปี", "5 ปี"],
-          index=3,  # ค่าเริ่มต้นที่ 1 ปี
+          "ช่วงเวลากราฟย้อนหลัง:",
+          ["1 เดือน", "3 เดือน", "6 เดือน", "1 ปี", "3 ปี", "5 ปี"],
+          index=3,
           key="chart_history_period_selectbox",
       )
-    with ctrl_col2:
+
+    with ctrl_col3:
       sr_overlay_tf = st.selectbox(
           "แสดงเส้นแนวรับ/ต้าน:",
           [
@@ -523,47 +535,87 @@ try:
           index=0,
           key="sr_overlay_selectbox",
       )
-    with ctrl_col3:
+
+    with ctrl_col4:
       st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
       show_fib_lines = st.checkbox(
           "เปิดแสดงเส้น Fibonacci บนกราฟ", value=False
       )
 
 
-    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตาม Timeframe/ช่วงเวลาที่ผู้ใช้เลือกใน Dropdown เท่านั้น
-    def get_chart_plot_data(ticker_str, period_choice):
+    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตามไทม์เฟรมแท่งเทียนและช่วงเวลาย้อนหลังที่แยกอิสระจากกัน
+    def get_chart_plot_data(ticker_str, tf_label, period_choice):
+      interval_map = {
+          "รายวัน (1D)": "1d",
+          "ราย 1 ชั่วโมง (1H)": "60m",
+          "ราย 4 ชั่วโมง (4H)": "240m",
+          "รายสัปดาห์ (1W)": "1wk",
+      }
+      yf_interval = interval_map.get(tf_label, "1d")
+
       period_map = {
           "1 เดือน": "1mo",
           "3 เดือน": "3mo",
           "6 เดือน": "6mo",
           "1 ปี": "1y",
+          "3 ปี": "3y",
           "5 ปี": "5y",
       }
       yf_period = period_map.get(period_choice, "1y")
+
       try:
-        df = yf.download(
-            ticker_str, period=yf_period, interval="1d", progress=False, auto_adjust=True
-        )
-        if isinstance(df.columns, pd.MultiIndex):
-          df.columns = df.columns.get_level_values(0)
-        return df, period_choice
+        if yf_interval == "240m":
+          df = yf.download(
+              ticker_str,
+              period="60d" if yf_period in ["1mo", "3mo"] else yf_period,
+              interval="60m",
+              progress=False,
+              auto_adjust=True,
+          )
+          if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+          if not df.empty:
+            df = (
+                df.resample("4h")
+                .agg(
+                    {
+                        "Open": "first",
+                        "High": "max",
+                        "Low": "min",
+                        "Close": "last",
+                        "Volume": "sum",
+                    }
+                )
+                .dropna()
+            )
+        else:
+          df = yf.download(
+              ticker_str,
+              period=yf_period,
+              interval=yf_interval,
+              progress=False,
+              auto_adjust=True,
+          )
+          if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
+        if not df.empty:
+          # คำนวณค่า EMA โดยอิงจากแท่งเทียนในไทม์เฟรมนั้นๆ โดยตรง
+          df["EMA_35"] = df["Close"].ewm(span=35, adjust=False).mean()
+          df["EMA_50"] = df["Close"].ewm(span=50, adjust=False).mean()
+          df["EMA_89"] = df["Close"].ewm(span=89, adjust=False).mean()
+          df["EMA_200"] = df["Close"].ewm(span=200, adjust=False).mean()
+
+        return df, tf_label, period_choice
       except Exception:
-        return pd.DataFrame(), period_choice
+        return pd.DataFrame(), tf_label, period_choice
 
 
-    plot_data, chart_tf_label = get_chart_plot_data(
-        ticker_symbol, chart_history_period
+    plot_data, active_tf_label, chart_tf_label = get_chart_plot_data(
+        ticker_symbol, chart_timeframe_interval, chart_history_period
     )
 
     if not plot_data.empty:
-      # คำนวณค่า EMA สดจากข้อมูลในไทม์เฟรม/ช่วงเวลาที่เลือกเท่านั้น
-      plot_data["EMA_35"] = plot_data["Close"].ewm(span=35, adjust=False).mean()
-      plot_data["EMA_50"] = plot_data["Close"].ewm(span=50, adjust=False).mean()
-      plot_data["EMA_89"] = plot_data["Close"].ewm(span=89, adjust=False).mean()
-      plot_data["EMA_200"] = (
-          plot_data["Close"].ewm(span=200, adjust=False).mean()
-      )
-
       ema_35_last = plot_data["EMA_35"].iloc[-1]
       ema_50_last = plot_data["EMA_50"].iloc[-1]
       ema_89_last = plot_data["EMA_89"].iloc[-1]
@@ -662,7 +714,7 @@ try:
           )
 
       ax.set_title(
-          f"Technical Chart (ไทม์เฟรม {chart_tf_label}) with {tf_label} S/R & Fibonacci -"
+          f"Technical Chart [{active_tf_label} | ย้อนหลัง {chart_tf_label}] -"
           f" {display_ticker_label}",
           fontsize=11,
           fontweight="bold",
@@ -686,7 +738,9 @@ try:
 
       st.pyplot(fig)
     else:
-      st.warning("ไม่พบข้อมูลกราฟในช่วงเวลานี้")
+      st.warning(
+          "ไม่พบข้อมูลกราฟในช่วงเวลาหรือไทม์เฟรมนี้ (บางไทม์เฟรมย่อยอาจไม่รองรับระยะเวลาย้อนหลังที่ยาวเกินไป)"
+      )
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 

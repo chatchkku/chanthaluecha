@@ -10,10 +10,10 @@ st.set_page_config(
     page_title="Chanthaluecha Intelligence Dashboard",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# --- Custom CSS รองรับทุกหน้าจอ (Mobile, Tablet, Desktop) ---
+# --- Custom CSS รองรับทุกหน้าจอ (ซ่อน Sidebar ถาวร) ---
 st.markdown(
     """
     <style>
@@ -27,6 +27,14 @@ st.markdown(
         .main {
             background-color: #f8fafc;
             color: #0f172a;
+        }
+
+        /* ซ่อน Sidebar และปุ่มเปิด-ปิด */
+        [data-testid="stSidebar"] {
+            display: none;
+        }
+        [data-testid="collapsedControl"] {
+            display: none;
         }
 
         /* Hero Header สำหรับทุกขนาดหน้าจอ */
@@ -62,19 +70,6 @@ st.markdown(
             .main-header p {
                 font-size: 1.05rem;
             }
-        }
-
-        /* Sidebar Styling */
-        [data-testid="stSidebar"] {
-            background-color: #f1f5f9;
-            border-right: 1px solid rgba(0, 0, 0, 0.08);
-        }
-        [data-testid="stSidebar"] .stMarkdown {
-            color: #0f172a !important;
-        }
-        [data-testid="stSidebar"] label {
-            color: #1e3a8a !important;
-            font-weight: 600;
         }
 
         /* Buttons Touch-Friendly สำหรับมือถือ */
@@ -170,12 +165,6 @@ if user_typed_ticker.strip():
   cleaned_input = user_typed_ticker.strip().upper()
   if cleaned_input != st.session_state.active_ticker.replace(".BK", ""):
     st.session_state.active_ticker = cleaned_input
-
-# --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) แบบโล่งสะอาด ---
-with st.sidebar:
-  st.markdown("### ⚙️ ควบคุมพอร์ตและระบบ")
-  st.markdown("---")
-  st.caption("💡 *ระบบประมวลผลข้อมูล Real-time ผ่าน Yahoo Finance*")
 
 # --- แปลงรหัสหุ้นให้อยู่ในรูปแบบที่ถูกต้องอัตโนมัติ (Smart Ticker) ---
 raw_clean = st.session_state.active_ticker.strip().upper()

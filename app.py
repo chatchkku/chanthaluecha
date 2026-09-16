@@ -189,12 +189,12 @@ else:
 @st.cache_data(ttl=600)
 def load_stock_data(ticker):
   stock_obj = yf.Ticker(ticker)
-  hist = stock_obj.history(period="1y")
+  hist = stock_obj.history(period="5y")
 
   if hist.empty and not ticker.endswith(".BK"):
     fallback_ticker = ticker + ".BK"
     stock_obj = yf.Ticker(fallback_ticker)
-    hist = stock_obj.history(period="1y")
+    hist = stock_obj.history(period="5y")
     if not hist.empty:
       return hist, stock_obj.info, stock_obj.news, fallback_ticker
 
@@ -499,22 +499,17 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- กราฟทางเทคนิค พร้อมเลือก Timeframe อิสระและคำนวณ EMA ตามไทม์เฟรม ---
+    # --- กราฟทางเทคนิค พร้อม Dropdown เลือกช่วงเวลากราฟย้อนหลัง (คำนวณ EMA ตามไทม์เฟรมที่เลือกเท่านั้น) ---
     st.markdown(
         "#### 📉 กราฟวิเคราะห์ทางเทคนิค (Price, EMA, S/R & Fibonacci Overlay)"
     )
     ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 1], gap="small")
     with ctrl_col1:
-      chart_tf_choice = st.selectbox(
-          "ไทม์เฟรมนกราฟ:",
-          [
-              "รายวัน (Daily)",
-              "ราย 1 ชั่วโมง (1H)",
-              "ราย 4 ชั่วโมง (4H)",
-              "รายสัปดาห์ (Weekly)",
-          ],
-          index=0,
-          key="chart_tf_selectbox",
+      chart_history_period = st.selectbox(
+          "ไทม์เฟรม/ช่วงเวลากราฟย้อนหลัง:",
+          ["1 เดือน", "3 เดือน", "6 เดือน", "1 ปี", "5 ปี"],
+          index=3,  # ค่าเริ่มต้นที่ 1 ปี
+          key="chart_history_period_selectbox",
       )
     with ctrl_col2:
       sr_overlay_tf = st.selectbox(
@@ -535,77 +530,33 @@ try:
       )
 
 
-    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณตาม Timeframe ที่เลือก
-    def get_chart_plot_data(ticker_str, tf_choice):
+    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตาม Timeframe/ช่วงเวลาที่ผู้ใช้เลือกใน Dropdown เท่านั้น
+    def get_chart_plot_data(ticker_str, period_choice):
+      period_map = {
+          "1 เดือน": "1mo",
+          "3 เดือน": "3mo",
+          "6 เดือน": "6mo",
+          "1 ปี": "1y",
+          "5 ปี": "5y",
+      }
+      yf_period = period_map.get(period_choice, "1y")
       try:
-        if "1 ชั่วโมง" in tf_choice:
-          df = yf.download(
-              ticker_str,
-              period="14d",
-              interval="60m",
-              progress=False,
-              auto_adjust=True,
-          )
-          if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-          return df, "1H"
-        elif "4 ชั่วโมง" in tf_choice:
-          df = yf.download(
-              ticker_str,
-              period="60d",
-              interval="60m",
-              progress=False,
-              auto_adjust=True,
-          )
-          if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-          if not df.empty:
-            df = (
-                df.resample("4h")
-                .agg(
-                    {
-                        "Open": "first",
-                        "High": "max",
-                        "Low": "min",
-                        "Close": "last",
-                        "Volume": "sum",
-                    }
-                )
-                .dropna()
-            )
-          return df, "4H"
-        elif "รายสัปดาห์" in tf_choice:
-          df = yf.download(
-              ticker_str,
-              period="2y",
-              interval="1wk",
-              progress=False,
-              auto_adjust=True,
-          )
-          if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-          return df, "Weekly"
-        else:
-          df = yf.download(
-              ticker_str,
-              period="1y",
-              interval="1d",
-              progress=False,
-              auto_adjust=True,
-          )
-          if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-          return df, "Daily"
+        df = yf.download(
+            ticker_str, period=yf_period, interval="1d", progress=False, auto_adjust=True
+        )
+        if isinstance(df.columns, pd.MultiIndex):
+          df.columns = df.columns.get_level_values(0)
+        return df, period_choice
       except Exception:
-        return pd.DataFrame(), "Daily"
+        return pd.DataFrame(), period_choice
 
 
     plot_data, chart_tf_label = get_chart_plot_data(
-        ticker_symbol, chart_tf_choice
+        ticker_symbol, chart_history_period
     )
 
     if not plot_data.empty:
-      # คำนวณค่า EMA จากแท่งเทียนใน Timeframe ที่เลือกโดยตรง
+      # คำนวณค่า EMA สดจากข้อมูลในไทม์เฟรม/ช่วงเวลาที่เลือกเท่านั้น
       plot_data["EMA_35"] = plot_data["Close"].ewm(span=35, adjust=False).mean()
       plot_data["EMA_50"] = plot_data["Close"].ewm(span=50, adjust=False).mean()
       plot_data["EMA_89"] = plot_data["Close"].ewm(span=89, adjust=False).mean()
@@ -628,7 +579,7 @@ try:
           plot_data["Close"],
           color="#0284c7",
           linewidth=1.8,
-          label=f"Close ({chart_tf_label})",
+          label=f"Close Price",
       )
       ax.plot(
           plot_data.index,
@@ -711,8 +662,8 @@ try:
           )
 
       ax.set_title(
-          f"Technical Chart ({chart_tf_label}) with {tf_label} S/R & Fibonacci"
-          f" - {display_ticker_label}",
+          f"Technical Chart (ไทม์เฟรม {chart_tf_label}) with {tf_label} S/R & Fibonacci -"
+          f" {display_ticker_label}",
           fontsize=11,
           fontweight="bold",
           color="#1e3a8a",

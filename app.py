@@ -214,11 +214,10 @@ def load_stock_data(ticker):
   return hist, stock_obj.info, stock_obj.news, ticker
 
 
-# ฟังก์ชันคำนวณแนวรับ-แนวต้าน (รองรับการแปลง 4H จากข้อมูล 1H เพื่อความเสถียร)
+# ฟังก์ชันคำนวณแนวรับ-แนวต้าน (แปลง 4H จาก 1H)
 def calculate_support_resistance(ticker, interval, period):
   try:
     if interval == "240m":
-      # ดึงข้อมูลราย 1 ชั่วโมง (60m) ย้อนหลัง 60 วัน เพื่อมาแปลงเป็นแท่ง 4H ป้องกันข้อผิดพลาดของ API
       df = yf.download(
           ticker, period="60d", interval="60m", progress=False, auto_adjust=True
       )
@@ -226,7 +225,6 @@ def calculate_support_resistance(ticker, interval, period):
         df.columns = df.columns.get_level_values(0)
       if df.empty or len(df) < 5:
         return None, None
-      # Resample รวมแท่งเทียน 1H ให้เป็น 4H
       df = (
           df.resample("4h")
           .agg(
@@ -687,24 +685,56 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- ข่าวสาร และ บทวิเคราะห์ ---
+    # --- ข่าวสาร และ บทวิเคราะห์ (เชื่อมโยงเว็บไซต์ยอดนิยม รวม Thunhoon) ---
     col_news, col_analysis = st.columns(2, gap="medium")
 
     with col_news:
-      st.markdown("#### 📰 ข่าวสารและประกาศสำคัญ")
+      st.markdown("#### 📰 ข่าวสารและประกาศสำคัญจากเว็บยอดนิยม")
       is_thai_stock = ticker_symbol.endswith(".BK")
+      clean_symbol = display_ticker_label.upper()
 
       if is_thai_stock:
-        clean_symbol = display_ticker_label.upper()
         settrade_url = (
             f"https://www.settrade.com/th/equities/quote/{clean_symbol}/news"
         )
-        st.info(
-            "🇹🇭 ศูนย์รวมข้อมูลและข่าวสารตลาดหลักทรัพย์ไทยแบบเรียลไทม์:"
-            f" \n\n👉 **[เปิดหน้าข่าวหลักทรัพย์จาก SETTRADE ({clean_symbol})]"
-            f"({settrade_url})**"
-        )
+        set_url = f"https://www.set.or.th/th/market/product/stock/quote/{clean_symbol}/news"
+        thunhoon_url = f"https://thunhoon.com/search?keyword={clean_symbol}"
+        trader_url = f"https://www.efinancethai.com/LastestNews/LatestNewsMain.aspx?ref=symbol&id={clean_symbol}"
 
+        st.markdown(
+            "🇹🇭 **ศูนย์รวมข่าวสารหลักทรัพย์ไทย (คลิกเปิดเว็บไซต์):**"
+        )
+        st.markdown(
+            f"👉 **[1. ข่าวทันหุ้น (Thunhoon): ค้นหาข่าว {clean_symbol}]({thunhoon_url})**"
+        )
+        st.markdown(
+            f"👉 **[2. ข่าวตลาดหลักทรัพย์และงบการเงิน (SET.or.th)]({set_url})**"
+        )
+        st.markdown(
+            f"👉 **[3. หน้าข่าวและการซื้อขายเรียลไทม์ (Settrade)]({settrade_url})**"
+        )
+        st.markdown(
+            f"👉 **[4. บทวิเคราะห์เจาะลึกหุ้น {clean_symbol} (eFinanceThai)]({trader_url})**"
+        )
+        st.markdown("---")
+      else:
+        yahoo_news_url = (
+            f"https://finance.yahoo.com/quote/{clean_symbol}/news/"
+        )
+        seeking_alpha_url = f"https://seekingalpha.com/symbol/{clean_symbol}"
+        st.markdown(
+            "🇺🇸 **ศูนย์รวมข่าวสารหลักทรัพย์/ETF สากล (คลิกเปิดเว็บไซต์):**"
+        )
+        st.markdown(
+            f"👉 **[1. ข่าวสารล่าสุดจาก Yahoo Finance ({clean_symbol})]"
+            f"({yahoo_news_url})**"
+        )
+        st.markdown(
+            f"👉 **[2. บทวิเคราะห์มุมมองนักลงทุน (Seeking Alpha)]({seeking_alpha_url})**"
+        )
+        st.markdown("---")
+
+      # แสดงฟีดข่าวจาก API ร่วมด้วย
       if news:
         cutoff_date = datetime.now() - timedelta(days=90)
         filtered_news = []
@@ -723,7 +753,11 @@ try:
 
         if filtered_news:
           filtered_news.sort(key=lambda x: x[0], reverse=True)
-          for news_date, item in filtered_news[:4]:
+          st.markdown(
+              "<span style='font-size: 0.85rem; color: #64748b;'>หัวข้อข่าวอัปเดตล่าสุด:</span>",
+              unsafe_allow_html=True,
+          )
+          for news_date, item in filtered_news[:3]:
             title = item.get("title", "No Title")
             publisher = item.get("publisher", "Unknown Source")
             link = item.get("link", "#")
@@ -731,12 +765,6 @@ try:
             st.markdown(f"🔹 **[{title}]({link})**")
             st.caption(f"สำนักข่าว: {publisher}")
             st.markdown("---")
-        else:
-          if not is_thai_stock:
-            st.info("ไม่พบข่าวสารในช่วง 90 วันล่าสุด")
-      else:
-        if not is_thai_stock:
-          st.info("ไม่มีรายงานข่าวสำหรับสินทรัพย์นี้ในระบบขณะนี้")
 
     with col_analysis:
       st.markdown("#### ✍️ บันทึกบทวิเคราะห์และแผนการลงทุน")

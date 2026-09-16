@@ -52,7 +52,6 @@ st.markdown(
             margin: 0;
         }
 
-        /* ปรับขนาดฟอนต์หัวข้อเมื่ออยู่บนหน้าจอคอมพิวเตอร์ (Desktop) */
         @media (min-width: 768px) {
             .main-header {
                 padding: 30px 35px;
@@ -104,7 +103,6 @@ st.markdown(
             min-height: 42px;
         }
         
-        /* Section Subheaders */
         h4, h3, h2, h1 {
             color: #1e3a8a !important;
             font-weight: 700 !important;
@@ -115,7 +113,6 @@ st.markdown(
             color: #1e293b;
         }
 
-        /* Card Container สำหรับจัดกลุ่มข้อมูลบนมือถือ */
         .metric-card-mobile {
             background: #ffffff;
             padding: 15px;
@@ -178,24 +175,26 @@ with st.sidebar:
   if custom_ticker and custom_ticker.strip() != "":
     raw_ticker = custom_ticker.strip().upper()
 
-  # ระบบอัจฉริยะ: หากเป็นหุ้นไทย (ตัวอักษร 4-5 ตัว ไม่มีจุด) ให้เติม .BK อัตโนมัติ
-  if "." not in raw_ticker and len(raw_ticker) >= 4:
-    ticker_symbol = raw_ticker + ".BK"
+  # --- ระบบ Smart Ticker อัจฉริยะ (จัดการเติม .BK อัตโนมัติอย่างแม่นยำ) ---
+  raw_clean = raw_ticker.strip().upper()
+  if "." in raw_clean:
+    ticker_symbol = raw_clean
   else:
-    ticker_symbol = raw_ticker
+    # หากเป็นชื่อย่อหุ้นสั้นๆ ทั่วไป (เช่น PTT, BDMS, AOT) ให้ลองเติม .BK ก่อน
+    ticker_symbol = raw_clean + ".BK"
 
   st.markdown("---")
   col_f1, col_f2 = st.columns(2)
   with col_f1:
     if st.button("⭐ เพิ่ม", use_container_width=True):
-      clean_fav = raw_ticker.replace(".BK", "")
+      clean_fav = raw_clean.replace(".BK", "")
       if clean_fav not in st.session_state.favorites:
         st.session_state.favorites.append(clean_fav)
         st.success(f"เพิ่ม {clean_fav} แล้ว!")
         st.rerun()
   with col_f2:
     if st.button("🗑️ ลบ", use_container_width=True):
-      clean_fav = raw_ticker.replace(".BK", "")
+      clean_fav = raw_clean.replace(".BK", "")
       if clean_fav in st.session_state.favorites:
         st.session_state.favorites.remove(clean_fav)
         st.warning(f"ลบ {clean_fav} แล้ว!")
@@ -205,14 +204,21 @@ with st.sidebar:
   st.caption("💡 *ระบบประมวลผลข้อมูล Real-time ผ่าน Yahoo Finance*")
 
 
-# --- ฟังก์ชันดึงข้อมูลหุ้น ---
+# --- ฟังก์ชันดึงข้อมูลหุ้น (พร้อมระบบสำรองกรณีหุ้นต่างประเทศ) ---
 @st.cache_data(ttl=600)
 def load_stock_data(ticker):
   stock_obj = yf.Ticker(ticker)
   hist = stock_obj.history(period="1y")
-  info = stock_obj.info
-  news = stock_obj.news
-  return hist, info, news
+
+  # ถ้าใส่หุ้นไทยแบบเติม .BK แล้วข้อมูลว่าง ให้ลองดึงแบบไม่มี .BK เผื่อเป็นหุ้นต่างประเทศ
+  if hist.empty and ticker.endswith(".BK"):
+    fallback_ticker = ticker.replace(".BK", "")
+    stock_obj = yf.Ticker(fallback_ticker)
+    hist = stock_obj.history(period="1y")
+    if not hist.empty:
+      return hist, stock_obj.info, stock_obj.news, fallback_ticker
+
+  return hist, stock_obj.info, stock_obj.news, ticker
 
 
 # ฟังก์ชันคำนวณแนวรับ-แนวต้าน (Pivot Point Basis)
@@ -268,15 +274,15 @@ def calculate_fibonacci_levels(ticker, interval, period):
     return None
 
 
-# --- ส่วนประมวลผลหลัก (ป้องกันหน้าจอขาวด้วย Try-Except) ---
+# --- ส่วนประมวลผลหลัก ---
 try:
   with st.spinner(f"กำลังโหลดข้อมูล {ticker_symbol.upper()}..."):
-    hist, info, news = load_stock_data(ticker_symbol)
+    hist, info, news, ticker_symbol = load_stock_data(ticker_symbol)
     stock = yf.Ticker(ticker_symbol)
 
   if hist is None or hist.empty:
     st.error(
-        f"⚠️ ไม่พบข้อมูลราคาสำหรับ `{ticker_symbol}` กรุณาตรวจสอบรหัสใหม่อีกครั้ง"
+        f"⚠️ ไม่พบข้อมูลราคาสำหรับ `{raw_ticker}` กรุณาตรวจสอบรหัสใหม่อีกครั้ง"
     )
   else:
     company_name = info.get("longName", ticker_symbol)
@@ -300,16 +306,12 @@ try:
     else:
       price_change, percent_change = 0, 0
 
-    # --- ส่วนที่ 2: แสดงข้อมูลสรุปราคา (Metrics Card Responsive) ---
     display_ticker_label = ticker_symbol.replace(".BK", "")
     st.markdown(
         f"### 📊 ภาพรวมหลักทรัพย์: **{company_name}** (`{display_ticker_label}`)"
     )
 
-    # ใช้ st.columns ที่รองรับการปัดตกแถวอัตโนมัติบนมือถือ
-    col1, col2, col3, col4 = st.columns(
-        [1, 1, 1, 1], gap="small"
-    )
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
     with col1:
       st.metric(
           "ราคาปัจจุบัน",
@@ -353,11 +355,9 @@ try:
         ticker_symbol, interval="1wk", period="1y"
     )
 
-    # --- ส่วนที่ 2.5: ตารางแสดงแนวรับ-แนวต้าน (4 Timeframes) ---
     st.markdown(
         "#### 🎯 วิเคราะห์แนวรับ - แนวต้าน (Support & Resistance - 4 Timeframes)"
     )
-
     sr_col1, sr_col2, sr_col3, sr_col4 = st.columns(4, gap="small")
 
     with sr_col1:
@@ -398,9 +398,8 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- ส่วนที่ 2.6: วิเคราะห์ระดับ Fibonacci Retracement ---
+    # --- ส่วน Fibonacci ---
     st.markdown("#### 🌀 วิเคราะห์ระดับ Fibonacci Retracement")
-
     fib_choice = st.selectbox(
         "เลือกกรอบเวลาเพื่อคำนวณ Fibonacci:",
         [
@@ -462,11 +461,10 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- ส่วนที่ 3: กราฟราคาหุ้นย้อนหลัง + EMA + S/R & Fibonacci Overlay ---
+    # --- กราฟทางเทคนิค ---
     st.markdown(
         "#### 📉 กราฟวิเคราะห์ทางเทคนิค (Price, EMA, S/R & Fibonacci Overlay)"
     )
-
     ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1, 1, 1], gap="small")
     with ctrl_col1:
       chart_period = st.radio(
@@ -516,7 +514,6 @@ try:
         plot_data = hist_filtered
 
       plt.style.use("default")
-      # ปรับสัดส่วนรูปกราฟให้ยืดหยุ่นตามหน้าจอ
       fig, ax = plt.subplots(figsize=(10, 4.5), constrained_layout=True)
       fig.patch.set_facecolor("#ffffff")
       ax.set_facecolor("#f8fafc")
@@ -637,7 +634,7 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- ส่วนที่ 4: ข่าวสารล่าสุด และ บทวิเคราะห์ส่วนตัว (Responsive Columns) ---
+    # --- ข่าวสาร และ บทวิเคราะห์ ---
     col_news, col_analysis = st.columns(2, gap="medium")
 
     with col_news:
@@ -658,7 +655,6 @@ try:
       if news:
         cutoff_date = datetime.now() - timedelta(days=90)
         filtered_news = []
-
         for item in news:
           pub_time = item.get("providerPublishTime")
           if pub_time:

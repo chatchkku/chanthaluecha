@@ -399,40 +399,60 @@ try:
     sr_col1, sr_col2, sr_col3, sr_col4 = st.columns(4, gap="small")
 
     with sr_col1:
+      sup_text = f"{sup_1h:,.2f}" if sup_1h else "N/A"
+      res_text = f"{res_1h:,.2f}" if res_1h else "N/A"
       st.markdown(
-          """<div class='metric-card-mobile'>""", unsafe_allow_html=True
+          f"""
+            <div class='metric-card-mobile'>
+                <strong>⏱️ 1 ชั่วโมง (1H)</strong><br>
+                🟢 รับ: <b>{sup_text}</b><br>
+                🔴 ต้าน: <b>{res_text}</b>
+            </div>
+        """,
+          unsafe_allow_html=True,
       )
-      st.markdown("**⏱️ 1 ชั่วโมง (1H)**")
-      st.markdown(f"🟢 รับ: **{f'{sup_1h:,.2f}' if sup_1h else 'N/A'}**")
-      st.markdown(f"🔴 ต้าน: **{f'{res_1h:,.2f}' if res_1h else 'N/A'}**")
-      st.markdown("</div>", unsafe_allow_html=True)
 
     with sr_col2:
+      sup_text = f"{sup_4h:,.2f}" if sup_4h else "N/A"
+      res_text = f"{res_4h:,.2f}" if res_4h else "N/A"
       st.markdown(
-          """<div class='metric-card-mobile'>""", unsafe_allow_html=True
+          f"""
+            <div class='metric-card-mobile'>
+                <strong>⏱️ 4 ชั่วโมง (4H)</strong><br>
+                🟢 รับ: <b>{sup_text}</b><br>
+                🔴 ต้าน: <b>{res_text}</b>
+            </div>
+        """,
+          unsafe_allow_html=True,
       )
-      st.markdown("**⏱️ 4 ชั่วโมง (4H)**")
-      st.markdown(f"🟢 รับ: **{f'{sup_4h:,.2f}' if sup_4h else 'N/A'}**")
-      st.markdown(f"🔴 ต้าน: **{f'{res_4h:,.2f}' if res_4h else 'N/A'}**")
-      st.markdown("</div>", unsafe_allow_html=True)
 
     with sr_col3:
+      sup_text = f"{sup_d:,.2f}" if sup_d else "N/A"
+      res_text = f"{res_d:,.2f}" if res_d else "N/A"
       st.markdown(
-          """<div class='metric-card-mobile'>""", unsafe_allow_html=True
+          f"""
+            <div class='metric-card-mobile'>
+                <strong>📅 รายวัน (Daily)</strong><br>
+                🟢 รับ: <b>{sup_text}</b><br>
+                🔴 ต้าน: <b>{res_text}</b>
+            </div>
+        """,
+          unsafe_allow_html=True,
       )
-      st.markdown("**📅 รายวัน (Daily)**")
-      st.markdown(f"🟢 รับ: **{f'{sup_d:,.2f}' if sup_d else 'N/A'}**")
-      st.markdown(f"🔴 ต้าน: **{f'{res_d:,.2f}' if res_d else 'N/A'}**")
-      st.markdown("</div>", unsafe_allow_html=True)
 
     with sr_col4:
+      sup_text = f"{sup_w:,.2f}" if sup_w else "N/A"
+      res_text = f"{res_w:,.2f}" if res_w else "N/A"
       st.markdown(
-          """<div class='metric-card-mobile'>""", unsafe_allow_html=True
+          f"""
+            <div class='metric-card-mobile'>
+                <strong>📆 รายสัปดาห์ (Weekly)</strong><br>
+                🟢 รับ: <b>{sup_text}</b><br>
+                🔴 ต้าน: <b>{res_text}</b>
+            </div>
+        """,
+          unsafe_allow_html=True,
       )
-      st.markdown("**📆 รายสัปดาห์ (Weekly)**")
-      st.markdown(f"🟢 รับ: **{f'{sup_w:,.2f}' if sup_w else 'N/A'}**")
-      st.markdown(f"🔴 ต้าน: **{f'{res_w:,.2f}' if res_w else 'N/A'}**")
-      st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
@@ -499,7 +519,7 @@ try:
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    # --- กราฟทางเทคนิค (แยกช่อง: 1. ไทม์เฟรมแท่งเทียน | 2. ช่วงเวลากราฟย้อนหลัง | 3. แนวรับ-ต้าน | 4. ฟิโบนักชี) ---
+    # --- กราฟทางเทคนิค ---
     st.markdown(
         "#### 📉 กราฟวิเคราะห์ทางเทคนิค (Price, EMA, S/R & Fibonacci Overlay)"
     )
@@ -510,8 +530,13 @@ try:
     with ctrl_col1:
       chart_timeframe_interval = st.selectbox(
           "ไทม์เฟรมแท่งเทียน:",
-          ["รายวัน (1D)", "ราย 1 ชั่วโมง (1H)", "ราย 4 ชั่วโมง (4H)", "รายสัปดาห์ (1W)"],
-          index=0,
+          [
+              "ราย 1 ชั่วโมง (1H)",
+              "ราย 4 ชั่วโมง (4H)",
+              "รายวัน (1D)",
+              "รายสัปดาห์ (1W)",
+          ],
+          index=2,
           key="chart_tf_interval_selectbox",
       )
 
@@ -543,12 +568,12 @@ try:
       )
 
 
-    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตามจำนวนแท่งเทียนของไทม์เฟรมนั้นๆ อย่างแท้จริง
+    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตามจำนวนแท่งเทียนของไทม์เฟรมนั้นๆ
     def get_chart_plot_data(ticker_str, tf_label, period_choice):
       interval_map = {
-          "รายวัน (1D)": "1d",
           "ราย 1 ชั่วโมง (1H)": "60m",
           "ราย 4 ชั่วโมง (4H)": "240m",
+          "รายวัน (1D)": "1d",
           "รายสัปดาห์ (1W)": "1wk",
       }
       yf_interval = interval_map.get(tf_label, "1d")
@@ -563,12 +588,9 @@ try:
       }
       yf_period = period_map.get(period_choice, "1y")
 
-      # ปรับระยะเวลาดาวน์โหลดขั้นต่ำให้เพียงพอต่อการคำนวณ EMA 200 ของแต่ละไทม์เฟรม
       if yf_interval == "60m":
-        # 1 ชั่วโมงต้องการข้อมูลอย่างน้อย ~200 ชั่วโมงการซื้อขาย (~30 วันทำการ)
         yf_period = "max" if yf_period in ["1mo"] else yf_period
       elif yf_interval == "240m":
-        # 4 ชั่วโมงต้องการข้อมูลย้อนหลังที่กว้างขึ้น
         yf_period = (
             "max" if yf_period in ["1mo", "3mo", "6mo"] else yf_period
         )
@@ -610,13 +632,11 @@ try:
             df.columns = df.columns.get_level_values(0)
 
         if not df.empty:
-          # คำนวณ EMA 35, 50, 89, 200 จากจำนวน "แท่งเทียน" ในไทม์เฟรมนั้นๆ โดยตรง
           df["EMA_35"] = df["Close"].ewm(span=35, adjust=False).mean()
           df["EMA_50"] = df["Close"].ewm(span=50, adjust=False).mean()
           df["EMA_89"] = df["Close"].ewm(span=89, adjust=False).mean()
           df["EMA_200"] = df["Close"].ewm(span=200, adjust=False).mean()
 
-          # ตัดข้อมูลให้แสดงผลตรงตามช่วงเวลา (Period) ที่ผู้ใช้เลือกใน UI
           days_delta_map = {
               "1 เดือน": timedelta(days=31),
               "3 เดือน": timedelta(days=92),
@@ -761,9 +781,7 @@ try:
 
       st.pyplot(fig)
     else:
-      st.warning(
-          "ไม่พบข้อมูลกราฟในช่วงเวลาหรือไทม์เฟรมนี้ (บางไทม์เฟรมย่อยอาจไม่รองรับระยะเวลาย้อนหลังที่ยาวเกินไป)"
-      )
+      st.warning("ไม่พบข้อมูลกราฟในช่วงเวลาหรือไทม์เฟรมนี้")
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 

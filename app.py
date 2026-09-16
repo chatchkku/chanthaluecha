@@ -126,17 +126,63 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# --- กำหนดรายการหุ้น SET50 ทั้งหมดเป็นค่าเริ่มต้น ---
+set50_list = [
+    "ADVANC",
+    "AOT",
+    "AWC",
+    "BANPU",
+    "BBL",
+    "BCP",
+    "BDMS",
+    "BEM",
+    "BGRIM",
+    "BH",
+    "BJC",
+    "BTS",
+    "CBG",
+    "CCET",
+    "COM7",
+    "CPALL",
+    "CPF",
+    "CPN",
+    "CRC",
+    "DELTA",
+    "EGCO",
+    "GLOBAL",
+    "GPSC",
+    "GULF",
+    "HMPRO",
+    "INTUCH",
+    "ITC",
+    "IVL",
+    "KBANK",
+    "KTB",
+    "KTC",
+    "LH",
+    "MINT",
+    "MTC",
+    "OR",
+    "OSP",
+    "PTT",
+    "PTTEP",
+    "PTTGC",
+    "RATCH",
+    "SAWAD",
+    "SCB",
+    "SCC",
+    "SCGP",
+    "TISCO",
+    "TLI",
+    "TOP",
+    "TRUE",
+    "TU",
+    "WHA",
+]
+
 # --- จัดการระบบหุ้นโปรด (Favorites) ---
 if "favorites" not in st.session_state:
-  st.session_state.favorites = [
-      "BDMS",
-      "TCAP",
-      "TTB",
-      "GULF",
-      "CBG",
-      "AOT",
-      "WHA",
-  ]
+  st.session_state.favorites = set50_list
 
 # ตัวแปรเก็บค่ารหัสหุ้นที่ถูกเลือก
 if "active_ticker" not in st.session_state:
@@ -177,13 +223,13 @@ if search_btn and quick_search.strip() != "":
 
 # --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) ---
 with st.sidebar:
-  st.markdown("### ⚙️ ควบคุมพอร์ตและหุ้นโปรด")
+  st.markdown("### ⚙️ ควบคุมพอร์ตและหุ้น SET50")
   st.markdown("---")
 
-  st.markdown("⭐ **รายชื่อหุ้นโปรดของคุณ**")
+  st.markdown("⭐ **รายชื่อหุ้น SET50 ในระบบ**")
   if st.session_state.favorites:
     selected_fav = st.selectbox(
-        "เลือกหุ้นจากรายการโปรด:",
+        "เลือกหุ้นจากกลุ่ม SET50:",
         st.session_state.favorites,
         key="fav_selectbox",
     )

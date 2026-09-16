@@ -664,6 +664,26 @@ try:
       ema_89_last = plot_data["EMA_89"].iloc[-1]
       ema_200_last = plot_data["EMA_200"].iloc[-1]
 
+      # Map ชื่อภาษาไทยของไทม์เฟรมและช่วงเวลา ให้แสดงเป็นภาษาอังกฤษล้วนในหัวข้อกราฟ
+      tf_code_map = {
+          "ราย 1 ชั่วโมง (1H)": "1H",
+          "ราย 4 ชั่วโมง (4H)": "4H",
+          "รายวัน (1D)": "Daily",
+          "รายสัปดาห์ (1W)": "Weekly",
+      }
+      period_code_map = {
+          "1 เดือน": "1M",
+          "3 เดือน": "3M",
+          "6 เดือน": "6M",
+          "1 ปี": "1Y",
+          "3 ปี": "3Y",
+          "5 ปี": "5Y",
+      }
+      eng_tf_label = tf_code_map.get(active_tf_label, active_tf_label)
+      eng_period_label = period_code_map.get(
+          chart_history_period, chart_history_period
+      )
+
       plt.style.use("default")
       fig, ax = plt.subplots(figsize=(10, 4.5), constrained_layout=True)
       fig.patch.set_facecolor("#ffffff")
@@ -709,13 +729,13 @@ try:
       )
 
       if "1 ชั่วโมง" in sr_overlay_tf:
-        active_sup, active_res, tf_label = sup_1h, res_1h, "1H"
+        active_sup, active_res, sup_res_tf_label = sup_1h, res_1h, "1H"
       elif "4 ชั่วโมง" in sr_overlay_tf:
-        active_sup, active_res, tf_label = sup_4h, res_4h, "4H"
+        active_sup, active_res, sup_res_tf_label = sup_4h, res_4h, "4H"
       elif "รายสัปดาห์" in sr_overlay_tf:
-        active_sup, active_res, tf_label = sup_w, res_w, "Weekly"
+        active_sup, active_res, sup_res_tf_label = sup_w, res_w, "Weekly"
       else:
-        active_sup, active_res, tf_label = sup_d, res_d, "Daily"
+        active_sup, active_res, sup_res_tf_label = sup_d, res_d, "Daily"
 
       if active_sup:
         ax.axhline(
@@ -724,7 +744,7 @@ try:
             linestyle="-.",
             linewidth=2.0,
             alpha=0.9,
-            label=f"{tf_label} Support: {active_sup:,.2f}",
+            label=f"{sup_res_tf_label} Support: {active_sup:,.2f}",
         )
       if active_res:
         ax.axhline(
@@ -733,7 +753,7 @@ try:
             linestyle="-.",
             linewidth=2.0,
             alpha=0.9,
-            label=f"{tf_label} Resistance: {active_res:,.2f}",
+            label=f"{sup_res_tf_label} Resistance: {active_res:,.2f}",
         )
 
       if show_fib_lines and active_fib:
@@ -757,7 +777,7 @@ try:
           )
 
       ax.set_title(
-          f"Technical Chart [{active_tf_label} | ย้อนหลัง {chart_tf_label}] -"
+          f"Technical Chart [{eng_tf_label} | Period: {eng_period_label}] -"
           f" {display_ticker_label}",
           fontsize=11,
           fontweight="bold",

@@ -543,7 +543,7 @@ try:
       )
 
 
-    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตามไทม์เฟรมแท่งเทียนและช่วงเวลาย้อนหลังที่แยกอิสระจากกัน
+    # ฟังก์ชันดึงข้อมูลกราฟและคำนวณ EMA ตามจำนวนแท่งเทียนของไทม์เฟรมนั้นๆ อย่างแท้จริง
     def get_chart_plot_data(ticker_str, tf_label, period_choice):
       interval_map = {
           "รายวัน (1D)": "1d",
@@ -563,11 +563,21 @@ try:
       }
       yf_period = period_map.get(period_choice, "1y")
 
+      # ปรับระยะเวลาดาวน์โหลดขั้นต่ำให้เพียงพอต่อการคำนวณ EMA 200 ของแต่ละไทม์เฟรม
+      if yf_interval == "60m":
+        # 1 ชั่วโมงต้องการข้อมูลอย่างน้อย ~200 ชั่วโมงการซื้อขาย (~30 วันทำการ)
+        yf_period = "max" if yf_period in ["1mo"] else yf_period
+      elif yf_interval == "240m":
+        # 4 ชั่วโมงต้องการข้อมูลย้อนหลังที่กว้างขึ้น
+        yf_period = (
+            "max" if yf_period in ["1mo", "3mo", "6mo"] else yf_period
+        )
+
       try:
         if yf_interval == "240m":
           df = yf.download(
               ticker_str,
-              period="60d" if yf_period in ["1mo", "3mo"] else yf_period,
+              period="max",
               interval="60m",
               progress=False,
               auto_adjust=True,
@@ -600,11 +610,24 @@ try:
             df.columns = df.columns.get_level_values(0)
 
         if not df.empty:
-          # คำนวณค่า EMA โดยอิงจากแท่งเทียนในไทม์เฟรมนั้นๆ โดยตรง
+          # คำนวณ EMA 35, 50, 89, 200 จากจำนวน "แท่งเทียน" ในไทม์เฟรมนั้นๆ โดยตรง
           df["EMA_35"] = df["Close"].ewm(span=35, adjust=False).mean()
           df["EMA_50"] = df["Close"].ewm(span=50, adjust=False).mean()
           df["EMA_89"] = df["Close"].ewm(span=89, adjust=False).mean()
           df["EMA_200"] = df["Close"].ewm(span=200, adjust=False).mean()
+
+          # ตัดข้อมูลให้แสดงผลตรงตามช่วงเวลา (Period) ที่ผู้ใช้เลือกใน UI
+          days_delta_map = {
+              "1 เดือน": timedelta(days=31),
+              "3 เดือน": timedelta(days=92),
+              "6 เดือน": timedelta(days=184),
+              "1 ปี": timedelta(days=365),
+              "3 ปี": timedelta(days=1095),
+              "5 ปี": timedelta(days=1825),
+          }
+          if period_choice in days_delta_map and not df.empty:
+            cutoff_time = df.index[-1] - days_delta_map[period_choice]
+            df = df[df.index >= cutoff_time]
 
         return df, tf_label, period_choice
       except Exception:

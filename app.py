@@ -126,24 +126,28 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- กำหนดรายการหุ้น SET50 ทั้งหมดเป็นค่าเริ่มต้น ---
-set50_list = [
+# --- กำหนดรายการหุ้นยอดนิยมและ SET50 ---
+default_stock_list = [
+    "BDMS",
+    "CPALL",
+    "TCAP",
+    "TTB",
+    "GULF",
+    "CBG",
+    "PTT",
+    "PTTEP",
     "ADVANC",
     "AOT",
     "AWC",
     "BANPU",
     "BBL",
     "BCP",
-    "BDMS",
     "BEM",
     "BGRIM",
     "BH",
     "BJC",
     "BTS",
-    "CBG",
-    "CCET",
     "COM7",
-    "CPALL",
     "CPF",
     "CPN",
     "CRC",
@@ -151,7 +155,6 @@ set50_list = [
     "EGCO",
     "GLOBAL",
     "GPSC",
-    "GULF",
     "HMPRO",
     "INTUCH",
     "ITC",
@@ -164,8 +167,6 @@ set50_list = [
     "MTC",
     "OR",
     "OSP",
-    "PTT",
-    "PTTEP",
     "PTTGC",
     "RATCH",
     "SAWAD",
@@ -178,11 +179,13 @@ set50_list = [
     "TRUE",
     "TU",
     "WHA",
+    "IVV",
+    "VT",
 ]
 
 # --- จัดการระบบหุ้นโปรด (Favorites) และ Active Ticker ---
 if "favorites" not in st.session_state:
-  st.session_state.favorites = set50_list
+  st.session_state.favorites = default_stock_list
 
 if "active_ticker" not in st.session_state:
   st.session_state.active_ticker = "BDMS"
@@ -198,90 +201,78 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- แผงค้นหาหุ้นด่วนด้านบนสุด (แก้ไขการรับค่าแบบอิสระ ไม่ติดล็อก Session State) ---
-search_col1, search_col2, search_col3 = st.columns([3, 1, 1], gap="small")
+# --- แผงค้นหาหุ้นด่วนด้านบนสุด (ใช้ st.selectbox แบบพิมพ์ค้นหาได้ทันที 100% ไม่ติดบั๊ก) ---
+search_col1, search_col2 = st.columns([4, 1], gap="small")
 
 with search_col1:
-  # ใช้ key แยกต่างหากเพื่อให้พิมพ์ได้อิสระโดยไม่ถูกบังคับค่าเก่าทับ
-  quick_search = st.text_input(
-      "🔍 ค้นหารหัสหุ้นด่วน (พิมพ์ชื่อหุ้นได้ทันที ไม่ต้องใส่ .BK):",
-      value="",
-      placeholder="เช่น CPALL, TTB, SCB, PTT, IVV",
-      key="search_input_box",
+  # แปลงรายการให้ไม่มี .BK ซ้ำซ้อน และทำการเรียงลำดับ
+  unique_stocks = sorted(
+      list(set([s.replace(".BK", "") for s in st.session_state.favorites]))
   )
+  current_clean_ticker = st.session_state.active_ticker.replace(
+      ".BK", ""
+  ).upper()
+
+  if current_clean_ticker not in unique_stocks:
+    unique_stocks.insert(0, current_clean_ticker)
+
+  default_idx = (
+      unique_stocks.index(current_clean_ticker)
+      if current_clean_ticker in unique_stocks
+      else 0
+  )
+
+  selected_quick = st.selectbox(
+      "🔍 พิมพ์ชื่อหุ้นหรือเลือกหลักทรัพย์ด่วน (เช่น CPALL, TTB, IVV):",
+      unique_stocks,
+      index=default_idx,
+      key="global_stock_selector",
+  )
+
+  if selected_quick and selected_quick != current_clean_ticker:
+    st.session_state.active_ticker = selected_quick
+    st.rerun()
+
 with search_col2:
   st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
-  search_btn = st.button("🔎 ค้นหา", use_container_width=True)
-with search_col3:
-  st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
-  clear_btn = st.button("🔄 รีเซ็ต", use_container_width=True)
-
-if clear_btn:
-  st.session_state.active_ticker = "BDMS"
-  st.rerun()
-
-# เมื่อกดปุ่มค้นหา ดึงข้อความจากกล่องพิมพ์มาตั้งเป็น Active Ticker ทันที
-if search_btn and quick_search.strip() != "":
-  st.session_state.active_ticker = quick_search.strip().upper()
-  st.rerun()
+  if st.button("🔄 รีเซ็ตค่า", use_container_width=True):
+    st.session_state.active_ticker = "BDMS"
+    st.rerun()
 
 # --- ส่วนที่ 1: แถบด้านข้าง (Sidebar) ---
 with st.sidebar:
-  st.markdown("### ⚙️ ควบคุมพอร์ตและหุ้น SET50")
+  st.markdown("### ⚙️ ควบคุมพอร์ตและรายการหุ้น")
   st.markdown("---")
 
-  st.markdown("⭐ **รายชื่อหุ้น SET50 ในระบบ**")
-  if st.session_state.favorites:
-    current_active = st.session_state.active_ticker.replace(".BK", "")
-    default_index = (
-        st.session_state.favorites.index(current_active)
-        if current_active in st.session_state.favorites
-        else 0
-    )
+  # ช่องเพิ่มหุ้นใหม่เองได้อย่างอิสระผ่าน Sidebar
+  st.markdown("➕ **เพิ่มรหัสหุ้นอื่นๆ (เช่น หุ้นต่างประเทศ/ETF)**")
+  custom_input = st.text_input(
+      "พิมพ์รหัสหุ้นที่ต้องการเพิ่ม:", placeholder="เช่น IVV, VT, AAPL"
+  )
+  if st.button("➕ เพิ่มเข้าในลิสต์", use_container_width=True):
+    if custom_input.strip():
+      new_t = custom_input.strip().upper().replace(".BK", "")
+      if new_t not in st.session_state.favorites:
+        st.session_state.favorites.append(new_t)
+        st.success(f"เพิ่ม {new_t} สำเร็จ!")
+        st.session_state.active_ticker = new_t
+        st.rerun()
 
-    selected_fav = st.selectbox(
-        "เลือกหุ้นจากกลุ่ม SET50:",
-        st.session_state.favorites,
-        index=default_index,
-        key="fav_selectbox",
-    )
-    if selected_fav and selected_fav != current_active:
-      st.session_state.active_ticker = selected_fav
+  st.markdown("---")
+  if st.button("🗑️ ลบหุ้นปัจจุบันออกจากลิสต์", use_container_width=True):
+    target_del = st.session_state.active_ticker.upper().replace(".BK", "")
+    if target_del in st.session_state.favorites:
+      st.session_state.favorites.remove(target_del)
+      st.warning(f"ลบ {target_del} เรียบร้อย!")
+      st.session_state.active_ticker = "BDMS"
       st.rerun()
-  else:
-    st.info("ยังไม่มีหุ้นในรายการโปรด")
-
-  st.markdown("---")
-  col_f1, col_f2 = st.columns(2)
-  with col_f1:
-    if st.button("⭐ เพิ่มหุ้นนี้", use_container_width=True):
-      clean_fav = (
-          st.session_state.active_ticker.upper()
-          .replace(".BK", "")
-          .strip()
-      )
-      if clean_fav not in st.session_state.favorites:
-        st.session_state.favorites.append(clean_fav)
-        st.success(f"เพิ่ม {clean_fav} แล้ว!")
-        st.rerun()
-  with col_f2:
-    if st.button("🗑️ ลบหุ้นนี้", use_container_width=True):
-      clean_fav = (
-          st.session_state.active_ticker.upper()
-          .replace(".BK", "")
-          .strip()
-      )
-      if clean_fav in st.session_state.favorites:
-        st.session_state.favorites.remove(clean_fav)
-        st.warning(f"ลบ {clean_fav} แล้ว!")
-        st.rerun()
 
   st.markdown("---")
   st.caption("💡 *ระบบประมวลผลข้อมูล Real-time ผ่าน Yahoo Finance*")
 
 # --- แปลงรหัสหุ้นให้อยู่ในรูปแบบที่ถูกต้อง (Smart Ticker) ---
 raw_clean = st.session_state.active_ticker.strip().upper()
-if "." in raw_clean:
+if "." in raw_clean or raw_clean in ["IVV", "VT", "AAPL", "TSLA", "MSFT"]:
   ticker_symbol = raw_clean
 else:
   ticker_symbol = raw_clean + ".BK"
@@ -293,8 +284,8 @@ def load_stock_data(ticker):
   stock_obj = yf.Ticker(ticker)
   hist = stock_obj.history(period="1y")
 
-  if hist.empty and ticker.endswith(".BK"):
-    fallback_ticker = ticker.replace(".BK", "")
+  if hist.empty and not ticker.endswith(".BK"):
+    fallback_ticker = ticker + ".BK"
     stock_obj = yf.Ticker(fallback_ticker)
     hist = stock_obj.history(period="1y")
     if not hist.empty:
@@ -388,7 +379,11 @@ try:
     else:
       price_change, percent_change = 0, 0
 
-    display_ticker_label = ticker_symbol.replace(".BK", "")
+    display_ticker_label = (
+        ticker_symbol.replace(".BK", "").upper()
+        if ticker_symbol.endswith(".BK")
+        else ticker_symbol.upper()
+    )
     st.markdown(
         f"### 📊 ภาพรวมหลักทรัพย์: **{company_name}** (`{display_ticker_label}`)"
     )

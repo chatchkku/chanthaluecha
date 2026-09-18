@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- 2. CUSTOM CSS (FIXED SLIM & CLEAN BUTTONS) ---
+# --- 2. CUSTOM CSS ---
 st.markdown(
     """
     <style>
@@ -262,7 +262,6 @@ def resolve_and_load_stock(raw_input):
         except Exception:
             continue
 
-    # Final fallback if nothing matched
     stock_obj = yf.Ticker(raw_input)
     hist = stock_obj.history(period="5y")
     return hist, stock_obj.info, stock_obj.news, raw_input
@@ -1246,6 +1245,137 @@ try:
         if st.button("💾 Save Strategy Notes", use_container_width=True):
             st.session_state.analysis_notes[display_ticker_label] = user_analysis
             st.success("บันทึกข้อมูลเรียบร้อยแล้ว!")
+
+        # --- 8. FOOTER FEATURE: EXACT SPAN EMA WATCHLIST RADAR (DAILY & 1H) ---
+        st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+        st.markdown("#### 🔔 Multi-EMA Watchlist Radar (EMA 35, 89, 200)")
+
+        watchlist_tickers = ["BDMS.BK", "TCAP.BK", "TTB.BK", "GULF.BK", "CBG.BK", "IVV", "VT", "VST"]
+
+        @st.cache_data(ttl=900)
+        def scan_exact_span_ema_radar(tickers):
+            matched_results = []
+            ema_spans = [35, 89, 200]
+
+            for t in tickers:
+                clean_name = t.replace(".BK", "").upper()
+                
+                # 1. สแกนไทม์เฟรม Daily (1d)
+                try:
+                    df_d = yf.download(t, period="2y", interval="1d", progress=False, auto_adjust=True)
+                    if isinstance(df_d.columns, pd.MultiIndex):
+                        df_d.columns = df_d.columns.get_level_values(0)
+                    
+                    if not df_d.empty:
+                        close_d = df_d["Close"].iloc[-1]
+                        for span in ema_spans:
+                            if len(df_d) >= span:
+                                ema_val = df_d["Close"].ewm(span=span, adjust=False).mean().iloc[-1]
+                                diff_d = ((close_d - ema_val) / ema_val) * 100
+                                if -3.0 <= diff_d <= 3.0:
+                                    matched_results.append({
+                                        "ticker": clean_name,
+                                        "ema": f"EMA {span}",
+                                        "tf": "Daily",
+                                        "price": close_d,
+                                        "ema_val": ema_val,
+                                        "diff": diff_d
+                                    })
+                except Exception:
+                    pass
+
+                # 2. สแกนไทม์เฟรม 1 ชั่วโมง (60m) - คำนวณจากแท่งเทียนจริงตามจำนวน span
+                try:
+                    for span in ema_spans:
+                        req_period = "10d" if span == 35 else ("30d" if span == 89 else "120d")
+                        df_1h = yf.download(t, period=req_period, interval="60m", progress=False, auto_adjust=True)
+                        if isinstance(df_1h.columns, pd.MultiIndex):
+                            df_1h.columns = df_1h.columns.get_level_values(0)
+                        
+                        if not df_1h.empty and len(df_1h) >= span:
+                            close_1h = df_1h["Close"].iloc[-1]
+                            ema_val = df_1h["Close"].ewm(span=span, adjust=False).mean().iloc[-1]
+                            diff_1h = ((close_1h - ema_val) / ema_val) * 100
+                            
+                            if -1.5 <= diff_1h <= 1.5:
+                                matched_results.append({
+                                    "ticker": clean_name,
+                                    "ema": f"EMA {span}",
+                                    "tf": "1 Hour",
+                                    "price": close_1h,
+                                    "ema_val": ema_val,
+                                    "diff": diff_1h
+                                })
+                except Exception:
+                    pass
+
+            return matched_results
+
+        with st.spinner("กำลังสแกนหุ้นเข้าใกล้เส้น EMA 35, 89, 200 (คำนวณจากจำนวนแท่งจริง)..."):
+            multi_radar_results = scan_exact_span_ema_radar(watchlist_tickers)
+
+        if multi_radar_results:
+            items_html = ""
+            for item in multi_radar_results:
+                status_color = "#10b981" if item["diff"] >= 0 else "#f59e0b"
+                tf_badge = "📅 Daily" if item["tf"] == "Daily" else "⏱️ 1H"
+                items_html += f"""
+                    <div class='ticker-item'>
+                        <b>{item['ticker']}</b> <span style='color:#38bdf8; font-size:0.8rem;'>({item['ema']} | {tf_badge})</span>&nbsp;&nbsp;
+                        Price: <span style='color:#00f0ff;'>{item['price']:,.2f}</span>&nbsp;&nbsp;
+                        Val: <span>{item['ema_val']:,.2f}</span>&nbsp;&nbsp;
+                        (<span style='color:{status_color};'>{item['diff']:+.2f}%</span>)
+                    </div>
+                """
+            double_items_html = items_html + items_html
+
+            marquee_html_code = f"""
+                <style>
+                    .marquee-container {{
+                        overflow: hidden;
+                        white-space: nowrap;
+                        background: rgba(13, 25, 48, 0.9);
+                        border: 1px solid rgba(0, 240, 255, 0.3);
+                        border-radius: 12px;
+                        padding: 12px 0;
+                        box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+                        margin-top: 10px;
+                        width: 100%;
+                    }}
+                    .marquee-track {{
+                        display: inline-block;
+                        white-space: nowrap;
+                        animation: marquee 40s linear infinite;
+                    }}
+                    .marquee-container:hover .marquee-track {{
+                        animation-play-state: paused;
+                    }}
+                    @keyframes marquee {{
+                        0% {{ transform: translate3d(0, 0, 0); }}
+                        100% {{ transform: translate3d(-50%, 0, 0); }}
+                    }}
+                    .ticker-item {{
+                        display: inline-flex;
+                        align-items: center;
+                        background: rgba(15, 23, 42, 0.8);
+                        border: 1px solid rgba(0, 240, 255, 0.2);
+                        padding: 8px 16px;
+                        border-radius: 8px;
+                        margin-right: 15px;
+                        color: #f1f5f9;
+                        font-size: 0.9rem;
+                        font-family: 'Plus Jakarta Sans', sans-serif;
+                    }}
+                </style>
+                <div class="marquee-container">
+                    <div class="marquee-track">
+                        {double_items_html}
+                    </div>
+                </div>
+            """
+            st.components.v1.html(marquee_html_code, height=90)
+        else:
+            st.info("ℹ️ ขณะนี้ยังไม่มีหุ้นใน Watchlist ที่ราคาอยู่ในโซนใกล้เส้น EMA 35, 89 หรือ 200 ของไทม์เฟรม Daily หรือ 1 Hour")
 
 except Exception as e:
     st.error(

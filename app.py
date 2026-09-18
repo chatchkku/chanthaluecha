@@ -19,7 +19,6 @@ st.markdown(
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
-        /* Global Theme Settings */
         html, body, [class*="st"], [data-testid="stAppViewContainer"] {
             font-family: 'Plus Jakarta Sans', sans-serif;
             color: #f1f5f9 !important;
@@ -34,7 +33,6 @@ st.markdown(
             display: none;
         }
 
-        /* Header Styling */
         .app-header {
             background: rgba(13, 25, 48, 0.85);
             padding: 24px 30px;
@@ -57,7 +55,6 @@ st.markdown(
             margin: 0;
         }
 
-        /* Metric Cards */
         .metric-card {
             background: rgba(15, 23, 42, 0.75);
             padding: 18px;
@@ -74,7 +71,6 @@ st.markdown(
             transform: translateY(-2px);
         }
 
-        /* Fixed Slim & Clean Modern Buttons */
         div[data-testid="stButton"] > button {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
             color: #ffffff !important;
@@ -101,7 +97,6 @@ st.markdown(
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
         }
 
-        /* Text Input Fields */
         .stTextInput input {
             background-color: #0b1329 !important;
             color: #00f0ff !important;
@@ -113,7 +108,6 @@ st.markdown(
             box-shadow: 0 0 10px rgba(0, 240, 255, 0.4) !important;
         }
 
-        /* Dropdown & Selectbox Override */
         div[data-baseweb="select"] > div,
         div[data-baseweb="select"] [data-testid="stMarkdownContainer"],
         div[data-baseweb="select"] input {
@@ -144,7 +138,6 @@ st.markdown(
             color: #00f0ff !important;
         }
 
-        /* Checkbox Styling */
         [data-testid="stCheckbox"] {
             display: flex;
             align-items: center;
@@ -171,7 +164,6 @@ st.markdown(
             font-weight: 600 !important;
         }
 
-        /* Textarea */
         .stTextArea textarea {
             background-color: #0b1329 !important;
             color: #f1f5f9 !important;
@@ -179,7 +171,6 @@ st.markdown(
             border-radius: 10px !important;
         }
 
-        /* Streamlit Expander Dark Theme */
         div[data-testid="stExpander"] {
             background-color: #0b1329 !important;
             border: 1px solid rgba(0, 240, 255, 0.2) !important;
@@ -190,7 +181,6 @@ st.markdown(
             background-color: #0b1329 !important;
         }
 
-        /* Headings & Metrics */
         h4 {
             color: #00f0ff !important;
             font-weight: 700 !important;
@@ -226,12 +216,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- 5. SEARCH PANEL ---
+# --- 5. SMART SEARCH PANEL ---
 search_col1, search_col2, search_col3 = st.columns([3, 1, 1], gap="small")
 
 with search_col1:
     user_typed_ticker = st.text_input(
-        "🔍 ค้นหารหัสหลักทรัพย์ (เช่น BDMS, PTT, TCAP, GULF, IVV):",
+        "🔍 ค้นหารหัสหลักทรัพย์ (เช่น VST, PTT, BDMS, IVV):",
         value=st.session_state.active_ticker.replace(".BK", ""),
         placeholder="พิมพ์รหัสหุ้น...",
         key="free_stock_input",
@@ -251,63 +241,31 @@ with search_col3:
         st.rerun()
 
 raw_clean = st.session_state.active_ticker.strip().upper()
-us_market_indicators = [
-    "IVV",
-    "VT",
-    "AAPL",
-    "TSLA",
-    "MSFT",
-    "NVDA",
-    "AMZN",
-    "GOOGL",
-    "META",
-    "SPY",
-    "QQQ",
-    "QQQM",
-    "QQQi",
-    "IREN",
-    "SOFI",
-    "NOW",
-    "MU",
-    "INTC",
-    "NBIS",
-    "RKLB",
-    "ASTS",
-    "SMR",
-    "EOSE",
-    "NVO",
-    "ORCL",
-    "AVGO",
-    "VXUS",
-    "VOO",
-    "SCHG",
-    "SCHD",
-    "NASA",
-    "GRID",
-    "SMH",
-    "JEPQ",
-]
-
-if "." in raw_clean or raw_clean in us_market_indicators or len(raw_clean) > 5:
-    ticker_symbol = raw_clean
-else:
-    ticker_symbol = raw_clean + ".BK"
 
 
-# --- 6. HELPER FUNCTIONS (CACHED SAFELY WITHOUT Ticker OBJECT) ---
+# --- 6. HELPER FUNCTIONS & SMART RESOLVER ---
 @st.cache_data(ttl=600)
-def load_stock_data(ticker):
-    stock_obj = yf.Ticker(ticker)
+def resolve_and_load_stock(raw_input):
+    candidates = []
+    if "." in raw_input:
+        candidates = [raw_input]
+    else:
+        candidates = [raw_input, raw_input + ".BK"]
+
+    for candidate in candidates:
+        try:
+            stock_obj = yf.Ticker(candidate)
+            hist = stock_obj.history(period="1mo")
+            if not hist.empty:
+                full_hist = stock_obj.history(period="5y")
+                return full_hist, stock_obj.info, stock_obj.news, candidate
+        except Exception:
+            continue
+
+    # Final fallback if nothing matched
+    stock_obj = yf.Ticker(raw_input)
     hist = stock_obj.history(period="5y")
-
-    if hist.empty and not ticker.endswith(".BK"):
-        fallback_ticker = ticker + ".BK"
-        stock_obj = yf.Ticker(fallback_ticker)
-        hist = stock_obj.history(period="5y")
-        if not hist.empty:
-            return hist, stock_obj.info, stock_obj.news, fallback_ticker
-
-    return hist, stock_obj.info, stock_obj.news, ticker
+    return hist, stock_obj.info, stock_obj.news, raw_input
 
 
 def calculate_support_resistance(ticker, interval, period):
@@ -425,8 +383,8 @@ def calculate_fibonacci_levels(ticker, interval, period):
 
 # --- 7. MAIN APPLICATION LOGIC ---
 try:
-    with st.spinner(f"กำลังโหลดข้อมูล {ticker_symbol.upper()}..."):
-        hist, info, news, ticker_symbol = load_stock_data(ticker_symbol)
+    with st.spinner(f"กำลังโหลดข้อมูล {raw_clean}..."):
+        hist, info, news, ticker_symbol = resolve_and_load_stock(raw_clean)
         stock_obj = yf.Ticker(ticker_symbol)
 
     if hist is None or hist.empty:
@@ -497,7 +455,7 @@ try:
 
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-        # Key Financial Statistics with Safe Fallbacks & Dividend Yield Filter
+        # Key Financial Statistics
         st.markdown("#### 📊 ค่าสถิติที่สำคัญ (Key Financial Statistics)")
 
         try:
@@ -506,7 +464,6 @@ try:
         except Exception:
             financials, balance_sheet = pd.DataFrame(), pd.DataFrame()
 
-        # 1. ROE (Return on Equity)
         roe = info.get("returnOnEquity")
         if (
             roe is None
@@ -523,7 +480,6 @@ try:
             except Exception:
                 roe = None
 
-        # 2. ROA (Return on Assets)
         roa = info.get("returnOnAssets")
         if (
             roa is None
@@ -540,7 +496,6 @@ try:
             except Exception:
                 roa = None
 
-        # 3. D/E Ratio
         de_ratio = info.get("debtToEquity")
         if (
             de_ratio is None
@@ -556,7 +511,6 @@ try:
             except Exception:
                 de_ratio = None
 
-        # 4. EPS, PE, PB & Filtered Dividend Yield
         pe_ratio = info.get("trailingPE", info.get("forwardPE", "N/A"))
         pb_ratio = info.get("priceToBook", "N/A")
         eps = info.get(
@@ -564,7 +518,6 @@ try:
             info.get("forwardEps", info.get("epsTrailingTwelveMonths", "N/A")),
         )
 
-        # Safe Dividend Yield Calculation with Cap / Filter
         raw_div = info.get("dividendYield")
         if raw_div is None:
             raw_div = info.get("trailingAnnualDividendYield", "N/A")
@@ -903,6 +856,7 @@ try:
                 "Indicator (Subplot 3):", ["RSI (14)", "MACD (12, 26, 9)"], index=0
             )
 
+
         def get_chart_plot_data(ticker_str, tf_label, period_choice):
             interval_map = {
                 "15 Mins (15m)": "15m",
@@ -1008,6 +962,7 @@ try:
                 return df, tf_label, period_choice
             except Exception:
                 return pd.DataFrame(), tf_label, period_choice
+
 
         plot_data, active_tf_label, chart_tf_label = get_chart_plot_data(
             ticker_symbol, chart_timeframe_interval, chart_history_period
